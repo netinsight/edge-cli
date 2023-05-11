@@ -1,0 +1,36 @@
+#!/bin/bash
+
+case "$*" in
+    "input list"*)
+        shift 2
+        exec ./list-inputs.sh "$@"
+        ;;
+    "input create"*)
+        shift 2
+        exec ./create-input.sh "$@"
+        ;;
+    "input delete"*)
+        shift 2
+        exec ./delete-input.sh "$@"
+        ;;
+    "output list"*)
+        shift 2
+        exec ./list-outputs.sh
+        ;;
+    "output create"*)
+        shift 2
+        exec ./create-output.sh "$@"
+        ;;
+    "appliance list"*)
+        shift 2
+        exec ./list-appliances.sh
+        ;;
+    "appliance delete"*)
+        shift 2
+        exec ./delete-appliance.sh "$@"
+        ;;
+    *)
+        echo >&2 "Unknown subcommand: $1 $2"
+        exit 1
+    ;;
+esac
