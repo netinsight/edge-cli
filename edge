@@ -3,31 +3,31 @@
 case "$*" in
     "input list"*)
         shift 2
-        exec ./list-inputs.sh "$@"
+        exec ./input-list.sh "$@"
         ;;
     "input create"*)
         shift 2
-        exec ./create-input.sh "$@"
+        exec ./input-create.sh "$@"
         ;;
     "input delete"*)
         shift 2
-        exec ./delete-input.sh "$@"
+        exec ./input-delete.sh "$@"
         ;;
     "output list"*)
         shift 2
-        exec ./list-outputs.sh
+        exec ./output-list.sh
         ;;
     "output create"*)
         shift 2
-        exec ./create-output.sh "$@"
+        exec ./output-create.sh "$@"
         ;;
     "appliance list"*)
         shift 2
-        exec ./list-appliances.sh
+        exec ./appliance-list.sh
         ;;
     "appliance delete"*)
         shift 2
-        exec ./delete-appliance.sh "$@"
+        exec ./appliance-delete.sh "$@"
         ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
