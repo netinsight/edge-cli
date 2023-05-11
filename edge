@@ -21,6 +21,10 @@ case "$*" in
         shift 2
         exec ./output-create.sh "$@"
         ;;
+    "output delete"*)
+        shift 2
+        exec ./output-delete.sh "$@"
+        ;;
     "appliance list"*)
         shift 2
         exec ./appliance-list.sh
