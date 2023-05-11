@@ -1,37 +1,39 @@
 #!/bin/bash
 
+script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
 case "$*" in
     "input list"*)
         shift 2
-        exec ./input-list.sh "$@"
+        exec "$script_dir/input-list.sh" "$@"
         ;;
     "input create"*)
         shift 2
-        exec ./input-create.sh "$@"
+        exec "$script_dir/input-create.sh" "$@"
         ;;
     "input delete"*)
         shift 2
-        exec ./input-delete.sh "$@"
+        exec "$script_dir/input-delete.sh" "$@"
         ;;
     "output list"*)
         shift 2
-        exec ./output-list.sh
+        exec "$script_dir/output-list.sh"
         ;;
     "output create"*)
         shift 2
-        exec ./output-create.sh "$@"
+        exec "$script_dir/output-create.sh" "$@"
         ;;
     "output delete"*)
         shift 2
-        exec ./output-delete.sh "$@"
+        exec "$script_dir/output-delete.sh" "$@"
         ;;
     "appliance list"*)
         shift 2
-        exec ./appliance-list.sh
-        ;;
+        exec "$script_dir/appliance-list.sh
+       " ;;
     "appliance delete"*)
         shift 2
-        exec ./appliance-delete.sh "$@"
+        exec "$script_dir/appliance-delete.sh" "$@"
         ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
