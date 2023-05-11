@@ -54,19 +54,10 @@ done
 : "${dest_port?missing or incomplete argument: destination port}"
 : "${input?missing argument: input name}"
 
-cookie_jar="$HOME/.config/edge-cli/some_site.cookie"
-# TODO: Deduplicate login
-if ! [ -f "$cookie_jar" ]; then
-    mkdir -p "$(dirname "$cookie_jar")"
-    curl 'https://lycksele.nimbra.dev/api/login/' \
-        -X POST \
-        -H 'Accept: application/json' \
-        -H 'Content-Type: application/json' \
-        --cookie-jar "$cookie_jar" \
-        --data-raw '{"username":"admin","password":"password"}'
-fi
+edge_url="${EDGE_URL?:missing environment variable: EDGE_URL}"
+cookie_jar="$("$(dirname -- "${BASH_SOURCE[0]}")/login.sh" "$edge_url")"
 
-appliance="$(curl https://lycksele.nimbra.dev/api/appliance/ \
+appliance="$(curl "$edge_url/api/appliance/" \
     --silent \
     --get \
     --data-urlencode 'q={"filter":{"searchName":"'"$appliance"'"}}' \
@@ -78,7 +69,7 @@ appliance_id="$(jq --raw-output .id <<<"$appliance")"
 physical_port=$(jq --arg name "$interface" '.physicalPorts | map(select(.name == $name))' <<<"$appliance")
 physical_port_id=$(jq --raw-output .[0].id <<<"$physical_port")
 
-logical_ports="$(curl https://lycksele.nimbra.dev/api/port/ \
+logical_ports="$(curl "$edge_url/api/port/" \
     --silent \
     --get \
     --data-urlencode 'q={"filter":{"appliance":"'"$appliance_id"'"},"skip":0,"limit":150}' \
@@ -88,7 +79,7 @@ logical_ports="$(curl https://lycksele.nimbra.dev/api/port/ \
 logical_port=$(jq --arg name "$interface" '. | map(select(.name == $name))[0]' <<<"$logical_ports")
 logical_port_id=$(jq --raw-output .id <<<"$logical_port")
 
-inputs="$(curl https://lycksele.nimbra.dev/api/input/ \
+inputs="$(curl "$edge_url/api/input/" \
     --silent \
     --get \
     --data-urlencode 'q={"filter":{"searchName":"'"$input"'"},"skip":0,"limit":150}' \
@@ -132,7 +123,7 @@ output_json=$(jq --null-input \
 
 jq . <<<"$output_json"
 
-curl https://lycksele.nimbra.dev/api/output/ \
+curl "$edge_url/api/output/" \
     --fail-with-body \
     -H 'Accept: application/json' \
     -H 'Content-Type: application/json' \

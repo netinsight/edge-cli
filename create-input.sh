@@ -57,18 +57,10 @@ done
 : "${mode?missing argument: mode}"
 : "${port?missing argument: port}"
 
-cookie_jar="$HOME/.config/edge-cli/some_site.cookie"
-if ! [ -f "$cookie_jar" ]; then
-    mkdir -p "$(dirname "$cookie_jar")"
-    curl 'https://lycksele.nimbra.dev/api/login/' \
-        -X POST \
-        -H 'Accept: application/json' \
-        -H 'Content-Type: application/json' \
-        --cookie-jar "$cookie_jar" \
-        --data-raw '{"username":"admin","password":"password"}'
-fi
+edge_url="${EDGE_URL?:missing environment variable: EDGE_URL}"
+cookie_jar="$("$(dirname -- "${BASH_SOURCE[0]}")/login.sh" "$edge_url")"
 
-appliance="$(curl https://lycksele.nimbra.dev/api/appliance/ \
+appliance="$(curl "$edge_url/api/appliance/" \
     --silent \
     --get \
     --data-urlencode 'q={"filter":{"searchName":"'"$appliance"'"}}' \
@@ -83,7 +75,7 @@ physical_port_id=$(jq --raw-output .[0].id <<<"$physical_port")
 
 port_address=$(jq --raw-output .[0].addresses[0].address <<<"$physical_port")
 
-logical_ports="$(curl https://lycksele.nimbra.dev/api/port/ \
+logical_ports="$(curl "$edge_url/api/port/" \
     --silent \
     --get \
     --data-urlencode 'q={"filter":{"appliance":"'"$appliance_id"'"},"skip":0,"limit":150}' \
@@ -136,7 +128,7 @@ input_json=$(jq --null-input \
 
 jq . <<<"$input_json"
 
-curl https://lycksele.nimbra.dev/api/input/ \
+curl "$edge_url/api/input/" \
     -H 'Accept: application/json' \
     -H 'Content-Type: application/json' \
     --cookie "$cookie_jar" \
