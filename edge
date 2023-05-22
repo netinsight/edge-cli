@@ -23,6 +23,10 @@ case "$*" in
         shift 2
         exec "$script_dir/output-create.sh" "$@"
         ;;
+    "output update"*)
+        shift 2
+        exec "$script_dir/output-update.sh" "$@"
+        ;;
     "output delete"*)
         shift 2
         exec "$script_dir/output-delete.sh" "$@"
