@@ -33,8 +33,8 @@ case "$*" in
         ;;
     "appliance list"*)
         shift 2
-        exec "$script_dir/appliance-list.sh
-       " ;;
+        exec "$script_dir/appliance-list.sh"
+        ;;
     "appliance delete"*)
         shift 2
         exec "$script_dir/appliance-delete.sh" "$@"
