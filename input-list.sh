@@ -45,8 +45,8 @@ input_tsv() {
     if [ "$output_format" == "short" ]; then
         printf "%s\t%s\t%s\n" "ID" "Name" "Health"
     elif [ "$output_format" == "wide" ]; then
-        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-            "ID" "Name" "Group" "Enabled" "Buffer" "Preview" "Thumbnails" "TR 101 290" "can subscribe" "Health"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "ID" "Name" "Group" "Enabled" "Buffer" "Preview" "Thumbnails" "TR 101 290" "can subscribe" "Appliance" "Health"
     fi
     while IFS=$'\t' read -r \
         id \
@@ -59,7 +59,8 @@ input_tsv() {
         preview_mode \
         thumbnail_mode \
         tr101290 \
-        can_subscribe 
+        can_subscribe \
+        appliance
     do
         group_name=${groups[$owner]}
         if [ "$health_state" == "allOk" ]; then
@@ -70,8 +71,8 @@ input_tsv() {
         if [ "$output_format" == "short" ]; then
             printf "%s\t%s\t$health %s\n" "$id" "$name" "$health_title"
         elif [ "$output_format" == "wide" ]; then
-            printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t$health %s\n" \
-                "$id" "$name" "$group_name" "$(parse_admin_status "$admin_status")" "$buffer_size" "$preview_mode" "$thumbnail_mode" "$tr101290" "$can_subscribe" "$health_title"
+            printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t%s\t$health %s\n" \
+                "$id" "$name" "$group_name" "$(parse_admin_status "$admin_status")" "$buffer_size" "$preview_mode" "$thumbnail_mode" "$tr101290" "$can_subscribe" "$appliance" "$health_title"
         fi
     done < <(curl "$edge_url/api/input/" \
         --silent \
@@ -88,9 +89,8 @@ input_tsv() {
                 .previewSettings.mode,
                 .thumbnailMode,
                 .tr101290Enabled,
-                .canSubscribe
-                # ports
-                # appliances
+                .canSubscribe,
+                .appliances[].name
             ])[] | @tsv')
 }
 

@@ -67,8 +67,8 @@ output_tsv() {
     if [ "$output_format" == "short" ]; then
         printf "%s\t%s\t%s\n" "ID" "Name" "Health"
     elif [ "$output_format" == "wide" ]; then
-        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-            "ID" "Name" "Group" "Enabled" "Input" "Redudancy" "Delay" "Delay mode" "Health"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "ID" "Name" "Group" "Enabled" "Input" "Redudancy" "Delay" "Delay mode" "Appliance" "Health"
     fi
     while IFS=$'\t' read -r \
             id \
@@ -80,7 +80,8 @@ output_tsv() {
             delay \
             delay_mode \
             health_state \
-            health_title
+            health_title \
+            appliance
         do
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
@@ -91,7 +92,7 @@ output_tsv() {
             printf "%s\t%s\t$health %s\n" "$id" "$name" "$health_title"
         elif [ "$output_format" == "wide" ]; then
             # We don't resolve input for performance reasons
-            printf "%s\t%s\t%s\t%s\t%s\t%s\t%sms\t%s\t$health %s\n" \
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%sms\t%s\t%s\t$health %s\n" \
                 "$id" \
                 "$name" \
                 "${groups[$group]}" \
@@ -100,6 +101,7 @@ output_tsv() {
                 "$(parse_redundancy "$redundancy_mode")" \
                 "$delay" \
                 "$(parse_delay_mode "$delay_mode")" \
+                "$appliance" \
                 "$health_title"
         fi
     done < <(curl "$edge_url/api/output/" \
@@ -116,7 +118,8 @@ output_tsv() {
                 .delay,
                 .delayMode,
                 .health.state,
-                .health.title
+                .health.title,
+                .appliances[].name
             ])[] | @tsv')
 }
 
