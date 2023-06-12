@@ -39,6 +39,10 @@ case "$*" in
         shift 2
         exec "$script_dir/appliance-delete.sh" "$@"
         ;;
+    "group list"*)
+        shift 2
+        exec "$script_dir/group-list.sh" "$@"
+        ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
         exit 1
