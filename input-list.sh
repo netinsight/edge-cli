@@ -33,6 +33,16 @@ parse_admin_status() {
     fi
 }
 
+parse_thumbnail_mode() {
+    if [ "$1" == 0 ]; then
+        echo -n none
+    elif [ "$1" == 2 ]; then
+        echo -n core
+    else
+        echo -n unknown
+    fi
+}
+
 declare -A groups
 # Only the wide format needs the group name
 if [ "$output_format" == "wide" ]; then
@@ -77,7 +87,7 @@ input_tsv() {
                 "$(parse_admin_status "$admin_status")" \
                 "$buffer_size" \
                 "$preview_mode" \
-                "$thumbnail_mode" \
+                "$(parse_thumbnail_mode "$thumbnail_mode")" \
                 "$tr101290" \
                 "$can_subscribe" \
                 "$appliance" \
