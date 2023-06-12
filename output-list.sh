@@ -68,7 +68,7 @@ output_tsv() {
         printf "%s\t%s\t%s\n" "ID" "Name" "Health"
     elif [ "$output_format" == "wide" ]; then
         printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-            "ID" "Name" "Group" "Enabled" "Input" "Redudancy" "Delay" "Delay mode" "Appliance" "Health"
+            "ID" "Name" "Group" "Enabled" "Input" "Redudancy" "Delay" "Delay mode" "Appliances" "Health"
     fi
     while IFS=$'\t' read -r \
             id \
@@ -81,7 +81,7 @@ output_tsv() {
             delay_mode \
             health_state \
             health_title \
-            appliance
+            appliances
         do
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
@@ -101,7 +101,7 @@ output_tsv() {
                 "$(parse_redundancy "$redundancy_mode")" \
                 "$delay" \
                 "$(parse_delay_mode "$delay_mode")" \
-                "$appliance"
+                "$appliances"
         fi
     done < <(curl "$edge_url/api/output/" \
         --silent \
@@ -118,7 +118,7 @@ output_tsv() {
                 .delayMode,
                 .health.state,
                 ( if .health.title == "" then "-" else .health.title end), # read with empty fields and IFS=\t is not supported
-                .appliances[].name
+                (.appliances | map(.name) | join(", "))
             ])[] | @tsv')
 }
 
