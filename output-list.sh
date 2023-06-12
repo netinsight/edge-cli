@@ -86,13 +86,13 @@ output_tsv() {
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
         else
-            health="\e[31m✗\e[0m"
+            health="\e[31m✗\e[0m $health_title"
         fi
         if [ "$output_format" == "short" ]; then
-            printf "%s\t%s\t$health %s\n" "$id" "$name" "$health_title"
+            printf "%s\t%s\t$health\n" "$id" "$name"
         elif [ "$output_format" == "wide" ]; then
             # We don't resolve input for performance reasons
-            printf "%s\t%s\t%s\t%s\t%s\t%s\t%sms\t%s\t%s\t$health %s\n" \
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%sms\t%s\t%s\t$health\n" \
                 "$id" \
                 "$name" \
                 "${groups[$group]}" \
@@ -101,8 +101,7 @@ output_tsv() {
                 "$(parse_redundancy "$redundancy_mode")" \
                 "$delay" \
                 "$(parse_delay_mode "$delay_mode")" \
-                "$appliance" \
-                "$health_title"
+                "$appliance"
         fi
     done < <(curl "$edge_url/api/output/" \
         --silent \
@@ -118,7 +117,7 @@ output_tsv() {
                 .delay,
                 .delayMode,
                 .health.state,
-                .health.title,
+                ( if .health.title == "" then "-" else .health.title end), # read with empty fields and IFS=\t is not supported
                 .appliances[].name
             ])[] | @tsv')
 }

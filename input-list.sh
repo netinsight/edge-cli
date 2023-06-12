@@ -75,12 +75,12 @@ input_tsv() {
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
         else
-            health="\e[31m✗\e[0m"
+            health="\e[31m✗\e[0m $health_title"
         fi
         if [ "$output_format" == "short" ]; then
-            printf "%s\t%s\t$health %s\n" "$id" "$name" "$health_title"
+            printf "%s\t%s\t$health\n" "$id" "$name"
         elif [ "$output_format" == "wide" ]; then
-            printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t%s\t$health %s\n" \
+            printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t%s\t$health\n" \
                 "$id" \
                 "$name" \
                 "${groups[$owner]}" \
@@ -90,8 +90,7 @@ input_tsv() {
                 "$(parse_thumbnail_mode "$thumbnail_mode")" \
                 "$tr101290" \
                 "$can_subscribe" \
-                "$appliance" \
-                "$health_title"
+                "$appliance"
         fi
     done < <(curl "$edge_url/api/input/" \
         --silent \
@@ -103,7 +102,7 @@ input_tsv() {
                 .adminStatus,
                 .owner,
                 .health.state,
-                .health.title,
+                ( if .health.title == "" then "-" else .health.title end), # read with empty fields and IFS=\t is not supported
                 .bufferSize,
                 .previewSettings.mode,
                 .thumbnailMode,
