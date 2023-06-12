@@ -113,7 +113,7 @@ output_tsv() {
                 .adminStatus,
                 .redundancyMode,
                 .group,
-                .input,
+                ( if .input then .input else "-" end),
                 .delay,
                 .delayMode,
                 .health.state,
