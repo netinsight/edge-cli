@@ -17,7 +17,7 @@ case "$*" in
         ;;
     "output list"*)
         shift 2
-        exec "$script_dir/output-list.sh"
+        exec "$script_dir/output-list.sh" "$@"
         ;;
     "output create"*)
         shift 2
