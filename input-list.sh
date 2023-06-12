@@ -62,7 +62,6 @@ input_tsv() {
         can_subscribe \
         appliance
     do
-        group_name=${groups[$owner]}
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
         else
@@ -74,7 +73,7 @@ input_tsv() {
             printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t%s\t$health %s\n" \
                 "$id" \
                 "$name" \
-                "$group_name" \
+                "${groups[$owner]}" \
                 "$(parse_admin_status "$admin_status")" \
                 "$buffer_size" \
                 "$preview_mode" \
