@@ -72,7 +72,17 @@ input_tsv() {
             printf "%s\t%s\t$health %s\n" "$id" "$name" "$health_title"
         elif [ "$output_format" == "wide" ]; then
             printf "%s\t%s\t%s\t%s\t%sms\t%s\t%s\t%s\t%s\t%s\t$health %s\n" \
-                "$id" "$name" "$group_name" "$(parse_admin_status "$admin_status")" "$buffer_size" "$preview_mode" "$thumbnail_mode" "$tr101290" "$can_subscribe" "$appliance" "$health_title"
+                "$id" \
+                "$name" \
+                "$group_name" \
+                "$(parse_admin_status "$admin_status")" \
+                "$buffer_size" \
+                "$preview_mode" \
+                "$thumbnail_mode" \
+                "$tr101290" \
+                "$can_subscribe" \
+                "$appliance" \
+                "$health_title"
         fi
     done < <(curl "$edge_url/api/input/" \
         --silent \
