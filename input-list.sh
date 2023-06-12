@@ -56,7 +56,7 @@ input_tsv() {
         printf "%s\t%s\t%s\n" "ID" "Name" "Health"
     elif [ "$output_format" == "wide" ]; then
         printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-            "ID" "Name" "Group" "Enabled" "Buffer" "Preview" "Thumbnails" "TR 101 290" "can subscribe" "Appliance" "Health"
+            "ID" "Name" "Group" "Enabled" "Buffer" "Preview" "Thumbnails" "TR 101 290" "can subscribe" "Appliances" "Health"
     fi
     while IFS=$'\t' read -r \
         id \
@@ -70,7 +70,7 @@ input_tsv() {
         thumbnail_mode \
         tr101290 \
         can_subscribe \
-        appliance
+        appliances
     do
         if [ "$health_state" == "allOk" ]; then
             health="\e[32m✓\e[0m"
@@ -90,7 +90,7 @@ input_tsv() {
                 "$(parse_thumbnail_mode "$thumbnail_mode")" \
                 "$tr101290" \
                 "$can_subscribe" \
-                "$appliance"
+                "$appliances"
         fi
     done < <(curl "$edge_url/api/input/" \
         --silent \
@@ -108,7 +108,7 @@ input_tsv() {
                 .thumbnailMode,
                 .tr101290Enabled,
                 .canSubscribe,
-                .appliances[].name
+                (.appliances | map(.name) | join(", "))
             ])[] | @tsv')
 }
 
