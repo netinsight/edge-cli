@@ -7,6 +7,10 @@ case "$*" in
         shift 2
         exec "$script_dir/input-list.sh" "$@"
         ;;
+    "input show"*)
+        shift 2
+        exec "$script_dir/input-show.sh" "$@"
+        ;;
     "input create"*)
         shift 2
         exec "$script_dir/input-create.sh" "$@"
