@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 

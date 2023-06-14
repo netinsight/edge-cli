@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 edge_url="${1?missing argument: edge URL}"
 install_name="${edge_url}"
