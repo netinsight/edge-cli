@@ -43,6 +43,14 @@ case "$*" in
         shift 2
         exec "$script_dir/appliance-list.sh"
         ;;
+    "appliance inputs"*)
+        shift 2
+        exec "$script_dir/appliance-inputs.sh" "$@"
+        ;;
+    "appliance outputs"*)
+        shift 2
+        exec "$script_dir/appliance-outputs.sh" "$@"
+        ;;
     "appliance delete"*)
         shift 2
         exec "$script_dir/appliance-delete.sh" "$@"
