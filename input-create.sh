@@ -55,7 +55,12 @@ done
 : "${appliance?missing argument: appliance}"
 : "${interface?missing argument: interface}"
 : "${mode?missing argument: mode}"
-: "${port?missing argument: port}"
+case "$mode" in
+    sdi|asi)
+        ;;
+    *)
+        : "${port?missing argument: port}"
+esac
 
 edge_url="${EDGE_URL?:missing environment variable: EDGE_URL}"
 cookie_jar="$("$(dirname -- "${BASH_SOURCE[0]}")/login.sh" "$edge_url")"
@@ -88,7 +93,7 @@ logical_port_id=$(jq --raw-output .id <<<"$logical_port")
 input_json=$(jq --null-input \
     --arg name "$name" \
     --arg port_address "$port_address" \
-    --arg port "$port" \
+    --arg port "${port-}" \
     --arg port_mode "$mode" \
     --arg physical_port "$physical_port_id" \
 	--arg port_id "$logical_port_id" \
@@ -107,10 +112,25 @@ input_json=$(jq --null-input \
 			id: $port_id,
             mode: $port_mode,
             physicalPort: $physical_port,
-            address: $port_address,
-            port: ($port | tonumber),
             copies: 1,
         }
+        | if $port_mode == "sdi" then . += {
+            encoderSettings: {
+              videoCodec: "h.264",
+              totalBitrate: 15000000,
+              gopSizeFrames: 150,
+              audioStreams: [{
+                codec: "aes3",
+                pair: 1,
+                bitrate: 1920,
+                type: "stereo"
+              }]
+            }
+        } else . end
+        | if $port | length > 0 then . += {
+            address: $port_address,
+            port: ($port | tonumber),
+        } else . end
 		| if $multicast | length > 0 then . += {
             multicastAddress: $multicast,
         } else . end
