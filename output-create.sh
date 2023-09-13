@@ -24,6 +24,10 @@ while [[ $# -gt 0 ]]; do
 			mode="$2"
 			shift 2
 			;;
+		--source)
+            source_addr="$2"
+			shift 2
+			;;
 		--dest)
             IFS=':' read -r dest_addr dest_port <<<"$2"
 			shift 2
@@ -98,6 +102,7 @@ output_json=$(jq --null-input \
     --arg dest_addr "$dest_addr" \
     --arg dest_port "$dest_port" \
     --arg input "$input_id" \
+    --arg source_addr "${source_addr-}" \
     --arg fec "$fec" \
     '{
         name: $name,
@@ -115,6 +120,9 @@ output_json=$(jq --null-input \
             ttl: 64,
             fec: ($fec == "true"),
         }
+        | if $source_addr | length > 0 then . += {
+          sourceAddress: $source_addr
+        } else . end
         ],
         redundancyMode: 0,
         input: $input,
