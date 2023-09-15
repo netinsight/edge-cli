@@ -7,9 +7,6 @@ set -euo pipefail
 name="${1?missing argument: name}"
 shift # positional argument name
 
-# default values
-fec=false
-
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--appliance)
@@ -35,10 +32,6 @@ while [[ $# -gt 0 ]]; do
 		--input)
 			input="$2"
 			shift 2
-			;;
-		--fec)
-			fec=true
-			shift
 			;;
 		-*)
 			echo "unknown option $1"
@@ -103,7 +96,6 @@ output_json=$(jq --null-input \
     --arg dest_port "$dest_port" \
     --arg input "$input_id" \
     --arg source_addr "${source_addr-}" \
-    --arg fec "$fec" \
     '{
         name: $name,
         delay: 1000,
@@ -118,7 +110,6 @@ output_json=$(jq --null-input \
             address: $dest_addr,
             port: ($dest_port | tonumber),
             ttl: 64,
-            fec: ($fec == "true"),
         }
         | if $source_addr | length > 0 then . += {
           sourceAddress: $source_addr
