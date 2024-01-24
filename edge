@@ -59,6 +59,14 @@ case "$*" in
         shift 2
         exec "$script_dir/group-list.sh" "$@"
         ;;
+    "region list"*)
+        shift 2
+        exec "$script_dir/region-list.sh" "$@"
+        ;;
+    "region delete"*)
+        shift 2
+        exec "$script_dir/region-delete.sh" "$@"
+        ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
         exit 1
