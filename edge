@@ -55,6 +55,10 @@ case "$*" in
         shift 2
         exec "$script_dir/appliance-delete.sh" "$@"
         ;;
+    "appliance config"*)
+        shift 2
+        exec "$script_dir/appliance-config.sh" "$@"
+        ;;
     "group list"*)
         shift 2
         exec "$script_dir/group-list.sh" "$@"
