@@ -72,7 +72,6 @@ appliance="$(curl "$edge_url/api/appliance/" \
     --cookie "$cookie_jar" | jq .items[0] )"
 
 appliance_name="$(jq --raw-output .name <<<"$appliance")"
-appliance_id="$(jq --raw-output .id <<<"$appliance")"
 appliance_type="$(jq --raw-output .type <<<"$appliance")"
 
 physical_port=$(jq --arg name "$interface" '.physicalPorts | map(select(.name == $name))' <<<"$appliance")
@@ -80,23 +79,12 @@ physical_port_id=$(jq --raw-output .[0].id <<<"$physical_port")
 
 port_address=$(jq --raw-output .[0].addresses[0].address <<<"$physical_port")
 
-logical_ports="$(curl "$edge_url/api/port/" \
-    --silent \
-    --get \
-    --data-urlencode 'q={"filter":{"appliance":"'"$appliance_id"'"},"skip":0,"limit":150}' \
-    --cookie "$cookie_jar" | jq .items )"
-
-# TODO Do I really need to include the logical port id?
-logical_port=$(jq --arg name "$interface" '. | map(select(.name == $name))[0]' <<<"$logical_ports")
-logical_port_id=$(jq --raw-output .id <<<"$logical_port")
-
 input_json=$(jq --null-input \
     --arg name "$name" \
     --arg port_address "$port_address" \
     --arg port "${port-}" \
     --arg port_mode "$mode" \
     --arg physical_port "$physical_port_id" \
-	--arg port_id "$logical_port_id" \
     --arg multicast "$multicast" \
 	--arg fec "${fec-}" \
     --arg appliance_type "$appliance_type" \
@@ -109,7 +97,6 @@ input_json=$(jq --null-input \
         videoPreviewMode: (if $thumbnail_mode == 2 then "on demand" else "off" end),
         adminStatus: 1,
         ports: [{
-			id: $port_id,
             mode: $port_mode,
             physicalPort: $physical_port,
             copies: 1,

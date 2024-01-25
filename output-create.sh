@@ -61,20 +61,9 @@ appliance="$(curl "$edge_url/api/appliance/" \
     --cookie "$cookie_jar" | jq .items[0] )"
 
 appliance_name="$(jq --raw-output .name <<<"$appliance")"
-appliance_id="$(jq --raw-output .id <<<"$appliance")"
 
 physical_port=$(jq --arg name "$interface" '.physicalPorts | map(select(.name == $name))' <<<"$appliance")
 physical_port_id=$(jq --raw-output .[0].id <<<"$physical_port")
-
-logical_ports="$(curl "$edge_url/api/port/" \
-    --silent \
-    --get \
-    --data-urlencode 'q={"filter":{"appliance":"'"$appliance_id"'"},"skip":0,"limit":150}' \
-    --cookie "$cookie_jar" | jq .items )"
-
-# TODO Do I really need to include the logical port id?
-logical_port=$(jq --arg name "$interface" '. | map(select(.name == $name))[0]' <<<"$logical_ports")
-logical_port_id=$(jq --raw-output .id <<<"$logical_port")
 
 inputs="$(curl "$edge_url/api/input/" \
     --silent \
@@ -91,7 +80,6 @@ output_json=$(jq --null-input \
     --arg name "$name" \
     --arg port_mode "$mode" \
     --arg physical_port "$physical_port_id" \
-	--arg port_id "$logical_port_id" \
     --arg dest_addr "$dest_addr" \
     --arg dest_port "$dest_port" \
     --arg input "$input_id" \
@@ -103,7 +91,6 @@ output_json=$(jq --null-input \
         adminStatus: 1,
         ports: [
         {
-            id: $port_id,
             mode: $port_mode,
             physicalPort: $physical_port,
             copies: 1,
