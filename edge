@@ -63,6 +63,10 @@ case "$*" in
         shift 2
         exec "$script_dir/group-list.sh" "$@"
         ;;
+    "group show"*)
+        shift 2
+        exec "$script_dir/group-show.sh" "$@"
+        ;;
     "region list"*)
         shift 2
         exec "$script_dir/region-list.sh" "$@"
