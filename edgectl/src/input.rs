@@ -1,8 +1,20 @@
 use std::collections::BTreeMap;
+use std::fmt;
+use std::process;
 
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::EdgeClient;
+
+impl fmt::Display for crate::edge::InputHealth {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.state == "allOk" {
+            write!(f, "\x1b[32m✓\x1b[0m")
+        } else {
+            write!(f, "\x1b[31m✗\x1b[0m {}", self.title)
+        }
+    }
+}
 
 pub fn list(client: EdgeClient) {
     let inputs = client.list_inputs().unwrap();
@@ -57,20 +69,10 @@ pub fn list_wide(client: EdgeClient) {
                 .get(&input.owner)
                 .map(|g| g.name.to_owned())
                 .unwrap_or("?".to_owned()),
-            (match input.admin_status {
-                1 => "on",
-                0 => "off",
-                _ => "unknown",
-            })
-            .to_owned(),
+            input.admin_status.to_string(),
             input.buffer_size.to_string(),
             input.preview_settings.mode,
-            (match input.thumbnail_mode {
-                0 => "none",
-                2 => "core",
-                _ => "unknown",
-            })
-            .to_owned(),
+            input.thumbnail_mode.to_string(),
             if input.tr101290_enabled {
                 "on".to_owned()
             } else {
@@ -94,4 +96,52 @@ pub fn list_wide(client: EdgeClient) {
     let mut table = builder.build();
     table.with(Style::empty());
     println!("{}", table)
+}
+
+pub fn show(client: EdgeClient, name: &str) {
+    let inputs = client.find_inputs(name);
+    let inputs = match inputs {
+        Ok(inputs) => inputs,
+        Err(e) => {
+            println!("Failed to find inputs: {:?}", e);
+            process::exit(1);
+        }
+    };
+
+    for input in inputs {
+        let group = client.get_group(&input.owner);
+        let group_name = group.map(|g| g.name).unwrap_or("unknown".to_owned());
+
+        println!("ID:             {}", input.id);
+        println!("Name:           {}", input.name);
+        println!("Admin status:   {}", input.admin_status);
+        println!("Owner:          {}", group_name);
+        println!("Buffer:         {}", input.buffer_size);
+        println!("Preview:        {}", input.preview_settings.mode);
+        println!("Thumbnail mode: {}", input.thumbnail_mode);
+        println!("TR 101 290:     {}", input.tr101290_enabled);
+        println!("Can subscribe:  {}", input.can_subscribe);
+        println!(
+            "Appliances:     {}",
+            input
+                .appliances
+                .into_iter()
+                .map(|a| a.name)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        if let Some(ports) = input.ports {
+            println!("Ports:");
+            for port in ports {
+                let port_details = client.get_port(&port.physical_port);
+                let name = port_details.map(|p| p.name).unwrap_or("unknown".to_owned());
+                println!("  - Mode:                   {}", port.mode);
+                println!("    Source interface:       {}", name);
+                println!("    Copies:                 {}", port.copies);
+            }
+        }
+        println!("Created:        {}", input.created_at);
+        println!("Updated:        {}", input.updated_at);
+        println!("Health:         {}", input.health);
+    }
 }

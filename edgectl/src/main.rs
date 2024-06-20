@@ -26,7 +26,13 @@ fn main() {
                             .help("Change the output format"),
                     ),
                 )
-                .subcommand(Command::new("show"))
+                .subcommand(
+                    Command::new("show").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The input name to show details for"),
+                    ),
+                )
                 .subcommand(Command::new("create"))
                 .subcommand(Command::new("delete")),
         )
@@ -67,11 +73,19 @@ fn main() {
         Some(("input", subcmd)) => match subcmd.subcommand() {
             Some(("list", args)) => {
                 let client = new_client();
-
                 match args.get_one::<String>("output").map(|s| s.as_str()) {
                     Some("wide") => input::list_wide(client),
                     _ => input::list(client),
                 };
+            }
+            Some(("show", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("input name should not be None");
+
+                input::show(client, name);
             }
             Some((cmd, _)) => {
                 eprintln!("Command input {cmd} is not yet implemented");
