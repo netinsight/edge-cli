@@ -1,5 +1,6 @@
 use std::fmt;
 
+use reqwest::blocking::Response;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
@@ -145,6 +146,168 @@ pub struct Port {
     pub name: String,
 }
 
+#[derive(Serialize)]
+struct EdgeQuery<T: Serialize> {
+    filter: T,
+}
+
+#[derive(Debug)]
+pub enum EdgeError {
+    RequestError(reqwest::Error),
+    NonSuccessStatus(reqwest::StatusCode, EdgeApiError),
+    ServerError(reqwest::StatusCode, EdgeApiError),
+    ClientError(reqwest::StatusCode, EdgeApiError),
+}
+
+#[derive(Debug)]
+pub enum EdgeApiError {
+    ApiError(EdgeErrorResp),
+    ParseError(String),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct EdgeErrorResp {
+    title: String,
+    detail: EdgeErrorResponseDetail,
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+enum EdgeErrorResponseDetail {
+    Detail(String),
+    InvalidParameters(Vec<InvalidParameter>),
+}
+
+#[derive(Deserialize, Debug)]
+struct InvalidParameter {
+    name: String,
+    reason: String,
+}
+
+impl From<Result<EdgeErrorResp, String>> for EdgeApiError {
+    fn from(res: Result<EdgeErrorResp, String>) -> Self {
+        match res {
+            Ok(api_err) => Self::ApiError(api_err),
+            Err(e) => Self::ParseError(e),
+        }
+    }
+}
+
+impl std::fmt::Display for EdgeApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ApiError(api_err) => api_err.fmt(f),
+            Self::ParseError(e) => write!(f, "error parsing error: {}", e),
+        }
+    }
+}
+
+impl std::fmt::Display for EdgeErrorResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Error: {}, type: {}, details: {}",
+            self.title, self.kind, self.detail,
+        )
+    }
+}
+
+impl std::fmt::Display for EdgeErrorResponseDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Detail(s) => s.fmt(f),
+            Self::InvalidParameters(params) => write!(
+                f,
+                "invalid parameters: {}",
+                params
+                    .iter()
+                    .map(|d| format!("{}: {}", d.name, d.reason))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+        }
+    }
+}
+
+impl From<reqwest::Error> for EdgeError {
+    fn from(item: reqwest::Error) -> Self {
+        Self::RequestError(item)
+    }
+}
+
+impl std::fmt::Display for EdgeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::RequestError(e) => e.fmt(f),
+            Self::NonSuccessStatus(s, res) => {
+                write!(f, "Unsuccessful HTTP status ({}): {}", s, res)
+            }
+            Self::ServerError(s, res) => write!(f, "HTTP server error ({}): {}", s, res),
+            Self::ClientError(s, res) => write!(f, "HTTP client error ({}): {}", s, res),
+        }
+    }
+}
+
+trait ResponseExt {
+    fn error_if_not_success(self) -> Result<Response, EdgeError>;
+}
+
+impl ResponseExt for Response {
+    fn error_if_not_success(self) -> Result<Self, EdgeError> {
+        let status_code = self.status();
+        if !status_code.is_success() {
+            let content_type = self
+                .headers()
+                .get("content-type")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_owned());
+            let body = self.text().ok();
+
+            let resp = get_edge_error_detail(content_type, body);
+
+            return Err(if status_code.is_client_error() {
+                EdgeError::ClientError(status_code, resp.into())
+            } else if status_code.is_server_error() {
+                EdgeError::ServerError(status_code, resp.into())
+            } else {
+                EdgeError::NonSuccessStatus(status_code, resp.into())
+            });
+        }
+
+        Ok(self)
+    }
+}
+
+fn get_edge_error_detail(
+    content_type: Option<String>,
+    body: Option<String>,
+) -> Result<EdgeErrorResp, String> {
+    let Some(body) = body else {
+        return Err("Missing body".to_owned());
+    };
+    let Some(content_type) = content_type else {
+        return Err("Failed to decode error response: content-type missing".to_owned());
+    };
+
+    if content_type != "application/json" {
+        return Err(format!(
+            "Decoding error response with content-type {} not supported",
+            content_type
+        ));
+    }
+
+    let json = serde_json::from_str::<EdgeErrorResp>(body.to_owned().as_ref());
+    match json {
+        Ok(res) => Ok(res),
+        Err(e) => Err(format!(
+            "Decoding error response as JSON failed, {}, {}",
+            e, body
+        )),
+    }
+}
+
 impl EdgeClient {
     pub fn with_url(url: &str) -> Self {
         let client = reqwest::blocking::Client::builder()
@@ -205,11 +368,6 @@ impl EdgeClient {
             search_name: String,
         }
 
-        #[derive(Serialize)]
-        struct EdgeQuery<T: Serialize> {
-            filter: T,
-        }
-
         #[derive(Debug, Deserialize)]
         struct InputListResp {
             items: Vec<Input>,
@@ -230,6 +388,14 @@ impl EdgeClient {
             .send()?;
 
         Ok(res.json::<InputListResp>()?.items)
+    }
+
+    pub fn delete_input(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/input/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
     }
 
     pub fn list_groups(&self) -> Result<Vec<Group>, reqwest::Error> {

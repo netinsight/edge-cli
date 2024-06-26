@@ -145,3 +145,26 @@ pub fn show(client: EdgeClient, name: &str) {
         println!("Health:         {}", input.health);
     }
 }
+
+pub fn delete(client: EdgeClient, name: &str) -> Result<(), reqwest::Error> {
+    let inputs = match client.find_inputs(name) {
+        Ok(inputs) => inputs,
+        Err(e) => {
+            println!("Failed to list inputs for deleteion: {}", e);
+            process::exit(1);
+        }
+    };
+    if inputs.is_empty() {
+        eprintln!("Input not found: {}", name);
+        process::exit(1);
+    }
+    for input in inputs {
+        if let Err(e) = client.delete_input(&input.id) {
+            println!("Failed to delete input {}: {}", input.name, e);
+            process::exit(1);
+        }
+        println!("Deleted input {}", input.name);
+    }
+
+    Ok(())
+}

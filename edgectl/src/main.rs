@@ -34,7 +34,13 @@ fn main() {
                     ),
                 )
                 .subcommand(Command::new("create"))
-                .subcommand(Command::new("delete")),
+                .subcommand(
+                    Command::new("delete").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The name of the inputs to remove"),
+                    ),
+                ),
         )
         .subcommand(
             Command::new("output")
@@ -86,6 +92,15 @@ fn main() {
                     .expect("input name should not be None");
 
                 input::show(client, name);
+            }
+            Some(("delete", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("name should not be None");
+
+                input::delete(client, name).unwrap();
             }
             Some((cmd, _)) => {
                 eprintln!("Command input {cmd} is not yet implemented");
