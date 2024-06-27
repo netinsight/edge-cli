@@ -53,7 +53,7 @@ fn main() {
                                 .long("mode")
                                 .required(true)
                                 .value_parser(clap::builder::PossibleValuesParser::new([
-                                    "rtp", "udp",
+                                    "rtp", "udp", "sdi",
                                 ]))
                                 .help("The input mode"),
                         )
@@ -215,6 +215,7 @@ fn main() {
                             multicast_address: multicast.map(|s| s.to_owned()),
                         })
                     }
+                    "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {}),
                     e => {
                         eprintln!("Invalid mode: {}", e);
                         process::exit(1);

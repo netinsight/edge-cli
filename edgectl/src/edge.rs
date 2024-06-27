@@ -224,6 +224,7 @@ pub struct InputPort {
 pub enum NewInputPort {
     Rtp(RtpInputPort),
     Udp(UdpInputPort),
+    Sdi(SdiInputPort),
 }
 
 #[derive(Debug, Serialize)]
@@ -247,6 +248,33 @@ pub struct UdpInputPort {
     pub port: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multicast_address: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdiInputPort {
+    pub copies: u8,
+    pub physical_port: String,
+    pub encoder_settings: SdiEncoderSettings,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdiEncoderSettings {
+    pub video_codec: String,
+    pub total_bitrate: u64,
+    pub gop_size_frames: u16,
+    pub audio_streams: Vec<SdiEncoderAudioStream>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdiEncoderAudioStream {
+    pub codec: String,
+    pub pair: u8,
+    pub bitrate: u16,
+    #[serde(rename = "type")]
+    pub kind: String, // enum: stereo | mono
 }
 
 #[derive(Debug, Deserialize)]

@@ -5,7 +5,8 @@ use std::process;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    AdminStatus, EdgeClient, NewInputPort, RtpInputPort, ThumbnailMode, UdpInputPort,
+    EdgeClient, InputAdminStatus, NewInputPort, RtpInputPort, SdiEncoderAudioStream,
+    SdiEncoderSettings, SdiInputPort, ThumbnailMode, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -159,6 +160,7 @@ pub struct NewInput {
 pub enum NewInputMode {
     Rtp(NewRtpInputMode),
     Udp(NewUdpInputMode),
+    Sdi(NewSdiInputMode),
 }
 
 pub struct NewRtpInputMode {
@@ -170,6 +172,7 @@ pub struct NewUdpInputMode {
     pub port: u16,
     pub multicast_address: Option<String>,
 }
+pub struct NewSdiInputMode {}
 
 pub fn create(client: EdgeClient, new_input: NewInput) {
     let appl = match client.find_appliances(&new_input.appliance) {
@@ -236,6 +239,21 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                 .to_owned(),
             port: udp.port,
             multicast_address: udp.multicast_address,
+        })],
+        NewInputMode::Sdi(_) => vec![NewInputPort::Sdi(SdiInputPort {
+            copies: 1,
+            physical_port: interface.id.to_owned(),
+            encoder_settings: SdiEncoderSettings {
+                video_codec: "h.264".to_owned(),
+                total_bitrate: 15000000,
+                gop_size_frames: 150,
+                audio_streams: vec![SdiEncoderAudioStream {
+                    codec: "aes3".to_owned(),
+                    pair: 1,
+                    bitrate: 1920,
+                    kind: "stereo".to_owned(),
+                }],
+            },
         })],
     };
 
