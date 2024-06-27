@@ -4,7 +4,9 @@ use std::process;
 
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::EdgeClient;
+use crate::edge::{
+    AdminStatus, EdgeClient, NewInputPort, RtpInputPort, ThumbnailMode, UdpInputPort,
+};
 
 impl fmt::Display for crate::edge::InputHealth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -143,6 +145,121 @@ pub fn show(client: EdgeClient, name: &str) {
         println!("Created:        {}", input.created_at);
         println!("Updated:        {}", input.updated_at);
         println!("Health:         {}", input.health);
+    }
+}
+
+pub struct NewInput {
+    pub name: String,
+    pub appliance: String,
+    pub interface: String,
+    pub thumbnails: bool,
+    pub mode: NewInputMode,
+}
+
+pub enum NewInputMode {
+    Rtp(NewRtpInputMode),
+    Udp(NewUdpInputMode),
+}
+
+pub struct NewRtpInputMode {
+    pub port: u16,
+    pub fec: bool,
+    pub multicast_address: Option<String>,
+}
+pub struct NewUdpInputMode {
+    pub port: u16,
+    pub multicast_address: Option<String>,
+}
+
+pub fn create(client: EdgeClient, new_input: NewInput) {
+    let appl = match client.find_appliances(&new_input.appliance) {
+        Ok(appls) if appls.is_empty() => {
+            println!("Could not find appliance {}", new_input.appliance);
+            process::exit(1);
+        }
+        Ok(appls) if appls.len() > 1 => {
+            println!(
+                "Found more than one appliance matching {}: {}",
+                new_input.appliance,
+                appls
+                    .into_iter()
+                    .map(|a| a.name)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            process::exit(1);
+        }
+        Ok(mut appls) => appls.pop().unwrap(),
+        Err(e) => {
+            println!("Failed to find appliance {}: {}", new_input.appliance, e);
+            process::exit(1);
+        }
+    };
+
+    let interface = match appl
+        .physical_ports
+        .iter()
+        .find(|p| p.name == new_input.interface)
+    {
+        Some(interface) => interface,
+        None => {
+            println!(
+                "Failed to find interface {} on appliance {}",
+                new_input.interface, appl.name
+            );
+            process::exit(1);
+        }
+    };
+
+    let ports = match new_input.mode {
+        NewInputMode::Rtp(rtp) => vec![NewInputPort::Rtp(RtpInputPort {
+            copies: 1,
+            physical_port: interface.id.to_owned(),
+            address: interface
+                .addresses
+                .first()
+                .expect("Expected at least one address on the appliance physical port")
+                .address
+                .to_owned(),
+            port: rtp.port,
+            fec: rtp.fec,
+            multicast_address: rtp.multicast_address,
+        })],
+        NewInputMode::Udp(udp) => vec![NewInputPort::Udp(UdpInputPort {
+            copies: 1,
+            physical_port: interface.id.to_owned(),
+            address: interface
+                .addresses
+                .first()
+                .expect("Expected at least one address on the appliance physical port")
+                .address
+                .to_owned(),
+            port: udp.port,
+            multicast_address: udp.multicast_address,
+        })],
+    };
+
+    if let Err(e) = client.create_input(crate::edge::NewInput {
+        name: new_input.name,
+        tr101290_enabled: true,
+        broadcast_standard: "dvb".to_owned(),
+        thumbnail_mode: if new_input.thumbnails {
+            ThumbnailMode::Core
+        } else {
+            ThumbnailMode::None
+        },
+        video_preview_mode: if new_input.thumbnails {
+            "on demand".to_owned()
+        } else {
+            "off".to_owned()
+        },
+        admin_status: InputAdminStatus::On,
+        ports,
+        buffer_size: 6_000,
+        max_bitrate: None,
+    }) {
+        eprintln!("Failed to create input: {}", e);
+        process::exit(1);
     }
 }
 

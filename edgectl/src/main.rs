@@ -33,7 +33,64 @@ fn main() {
                             .help("The input name to show details for"),
                     ),
                 )
-                .subcommand(Command::new("create"))
+                .subcommand(
+                    Command::new("create")
+                        .arg(
+                            Arg::new("name")
+                                .required(true)
+                                .help("The name of the new input"),
+                        )
+                        .arg(
+                            Arg::new("appliance")
+                                .short('a')
+                                .long("appliance")
+                                .required(true)
+                                .help("The appliance to create the input on"),
+                        )
+                        .arg(
+                            Arg::new("mode")
+                                .short('m')
+                                .long("mode")
+                                .required(true)
+                                .value_parser(clap::builder::PossibleValuesParser::new([
+                                    "rtp", "udp",
+                                ]))
+                                .help("The input mode"),
+                        )
+                        .arg(
+                            Arg::new("interface")
+                                .short('i')
+                                .long("interface")
+                                .required(true)
+                                .help("The interface on the appliance to create the input on"),
+                        )
+                        .arg(
+                            Arg::new("disable-thumbnails")
+                                .long("disable-thumbnails")
+                                .num_args(0)
+                                .help("Disable thumbnailing"),
+                        )
+                        .arg(
+                            Arg::new("port")
+                                .short('p')
+                                .long("port")
+                                .value_parser(clap::value_parser!(u16).range(1..))
+                                .action(clap::ArgAction::Set)
+                                .required(false)
+                                .help("The TCP or UDP port to listen to"),
+                        )
+                        .arg(
+                            Arg::new("fec")
+                                .long("fec")
+                                .num_args(0)
+                                .help("Enable FEC for RTP inputs"),
+                        )
+                        .arg(
+                            Arg::new("multicast")
+                                .long("multicast")
+                                .help("Specify source multicast address for RTP and UDP inputs"),
+                        ),
+                )
                 .subcommand(
                     Command::new("delete").arg(
                         Arg::new("name")
@@ -92,6 +149,88 @@ fn main() {
                     .expect("input name should not be None");
 
                 input::show(client, name);
+            }
+            Some(("create", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("name is required");
+                let appliance = args
+                    .get_one::<String>("appliance")
+                    .map(|s| s.as_str())
+                    .expect("appliance is required");
+                let port = args.get_one::<u16>("port");
+                let interface = args
+                    .get_one::<String>("interface")
+                    .map(|s| s.as_str())
+                    .expect("interface is required");
+                let mode = args
+                    .get_one::<String>("mode")
+                    .map(|s| s.as_str())
+                    .expect("mode is required");
+                let disable_thumbnails = args.get_flag("disable-thumbnails");
+                let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
+
+                if port.is_some() && mode != "rtp" && mode != "udp" {
+                    eprintln!("The port flag is not supported with mode {}", mode);
+                    process::exit(1);
+                }
+
+                if args.get_flag("fec") && mode != "rtp" {
+                    eprintln!("The fec flag is only supported with RTP inputs");
+                    process::exit(1);
+                }
+
+                if multicast.is_some() && mode != "rtp" && mode != "udp" {
+                    eprintln!("The multicast flag is not supported with mode {}", mode);
+                    process::exit(1);
+                }
+
+                let mode = match mode {
+                    "rtp" => {
+                        let port = match port {
+                            Some(p) => p,
+                            None => {
+                                eprintln!("Port is required for RTP inputs");
+                                process::exit(1);
+                            }
+                        };
+                        input::NewInputMode::Rtp(input::NewRtpInputMode {
+                            port: *port,
+                            fec: args.get_flag("fec"),
+                            multicast_address: multicast.map(|s| s.to_owned()),
+                        })
+                    }
+                    "udp" => {
+                        let port = match port {
+                            Some(p) => p,
+                            None => {
+                                eprintln!("Port is required for UDP inputs");
+                                process::exit(1);
+                            }
+                        };
+                        input::NewInputMode::Udp(input::NewUdpInputMode {
+                            port: *port,
+                            multicast_address: multicast.map(|s| s.to_owned()),
+                        })
+                    }
+                    e => {
+                        eprintln!("Invalid mode: {}", e);
+                        process::exit(1);
+                    }
+                };
+
+                input::create(
+                    client,
+                    input::NewInput {
+                        name: name.to_owned(),
+                        appliance: appliance.to_owned(),
+                        interface: interface.to_owned(),
+                        thumbnails: !disable_thumbnails,
+                        mode,
+                    },
+                )
             }
             Some(("delete", args)) => {
                 let client = new_client();

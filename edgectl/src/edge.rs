@@ -1,7 +1,7 @@
 use std::fmt;
 
 use reqwest::blocking::Response;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 
 pub struct EdgeClient {
@@ -47,6 +47,18 @@ impl<'de> Deserialize<'de> for InputAdminStatus {
     }
 }
 
+impl Serialize for InputAdminStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Off => serializer.serialize_u8(0),
+            Self::On => serializer.serialize_u8(1),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ThumbnailMode {
     None,
@@ -76,6 +88,18 @@ impl<'de> Deserialize<'de> for ThumbnailMode {
     }
 }
 
+impl Serialize for ThumbnailMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ThumbnailMode::None => serializer.serialize_u8(0),
+            ThumbnailMode::Core => serializer.serialize_u8(2),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
@@ -92,9 +116,23 @@ pub struct Input {
     pub thumbnail_mode: ThumbnailMode, // 0,1 or 2
     pub tr101290_enabled: bool,
     pub can_subscribe: bool,
-    pub appliances: Vec<Appliance>,
+    pub appliances: Vec<InputAppliance>,
     pub health: InputHealth,
     pub ports: Option<Vec<InputPort>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewInput {
+    pub name: String,
+    pub tr101290_enabled: bool,
+    pub broadcast_standard: String,
+    pub thumbnail_mode: ThumbnailMode,
+    pub video_preview_mode: String, // "on demand" | "off"
+    pub admin_status: InputAdminStatus,
+    pub ports: Vec<NewInputPort>,
+    pub buffer_size: u16,
+    pub max_bitrate: Option<u16>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -112,11 +150,59 @@ pub struct InputHealth {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Appliance {
+pub struct InputAppliance {
     pub name: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Appliance {
+    pub name: String,
+    // pub hostname: String,
+    // pub contact: String,
+    // pub serial: String,
+    // pub id: String,
+    // version
+    // lastMessageAt
+    // lastRegisteredAt
+    // health { title, state }
+    pub physical_ports: Vec<AppliancePhysicalPort>,
+    // region { id, name }
+    // type
+    // owner is the group id
+    // pub owner: String,
+    // alarms
+    // features
+    // logLevel
+    // collectHostMetrics
+    // ristserverLogLevel
+    // settings
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliancePhysicalPort {
+    pub id: String,
+    pub name: String,
+    // example: 86:71:48:3b:e3:1b
+    // pub mac: String,
+    // pub index: String,
+    // pub portType: enum?,
+    // pub appliance: { id, name, type, version }
+    // owner is the group id
+    // pub owner: Strig,
+    pub addresses: Vec<PhysicalPortAddress>,
+    // networks: []
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhysicalPortAddress {
+    pub address: String,
+    // pub netmask: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputPort {
     pub id: String,
@@ -130,6 +216,37 @@ pub struct InputPort {
     // "scanMode": "progressive",
     // "frameRate": "30",
     // "timestampResolution": "seconds"
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "mode")]
+pub enum NewInputPort {
+    Rtp(RtpInputPort),
+    Udp(UdpInputPort),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtpInputPort {
+    pub copies: u8,
+    pub physical_port: String,
+    pub address: String,
+    pub port: u16,
+    pub fec: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub multicast_address: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UdpInputPort {
+    pub copies: u8,
+    pub physical_port: String,
+    pub address: String,
+    pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub multicast_address: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -390,6 +507,16 @@ impl EdgeClient {
         Ok(res.json::<InputListResp>()?.items)
     }
 
+    pub fn create_input(&self, input: NewInput) -> Result<(), EdgeError> {
+        self.client
+            .post(format!("{}/api/input/", self.url))
+            .header("content-type", "application/json")
+            .json(&input)
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
     pub fn delete_input(&self, id: &str) -> Result<(), EdgeError> {
         self.client
             .delete(format!("{}/api/input/{}", self.url, id))
@@ -432,5 +559,34 @@ impl EdgeClient {
             .send()?;
 
         res.json::<Port>()
+    }
+
+    pub fn find_appliances(&self, name: &str) -> Result<Vec<Appliance>, reqwest::Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ApplianceFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct ApplianceListResp {
+            items: Vec<Appliance>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: ApplianceFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/appliance/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<ApplianceListResp>()?.items)
     }
 }
