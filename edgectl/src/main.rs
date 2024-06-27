@@ -1,3 +1,4 @@
+mod appliance;
 mod edge;
 mod group;
 mod input;
@@ -247,6 +248,13 @@ fn main() {
                 process::exit(1);
             }
             None => unreachable!("subcommand_required prevents `None`"),
+        },
+        Some(("appliance", subcmd)) => match subcmd.subcommand() {
+            Some(("list", _)) | None => {
+                let client = new_client();
+                appliance::list(client)
+            }
+            _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
         Some(("group", subcmd)) => match subcmd.subcommand() {
             Some(("list", _)) | None => {

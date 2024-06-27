@@ -161,14 +161,15 @@ pub struct Appliance {
     // pub hostname: String,
     // pub contact: String,
     // pub serial: String,
-    // pub id: String,
+    pub id: String,
     // version
     // lastMessageAt
     // lastRegisteredAt
-    // health { title, state }
+    pub health: Option<ApplianceHealth>,
     pub physical_ports: Vec<AppliancePhysicalPort>,
     // region { id, name }
-    // type
+    #[serde(rename = "type")]
+    pub kind: String,
     // owner is the group id
     // pub owner: String,
     // alarms
@@ -177,6 +178,21 @@ pub struct Appliance {
     // collectHostMetrics
     // ristserverLogLevel
     // settings
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceHealth {
+    pub title: String,
+    pub state: ApplianceHealthState,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApplianceHealthState {
+    Connected,
+    Missing,
+    NeverConnected,
 }
 
 #[derive(Debug, Deserialize)]
@@ -587,6 +603,22 @@ impl EdgeClient {
             .send()?;
 
         res.json::<Port>()
+    }
+
+    pub fn list_appliances(&self) -> Result<Vec<Appliance>, reqwest::Error> {
+        #[derive(Debug, Deserialize)]
+        struct ApplianceListResponse {
+            items: Vec<Appliance>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/appliance/"#, self.url,))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<ApplianceListResponse>()?.items)
     }
 
     pub fn find_appliances(&self, name: &str) -> Result<Vec<Appliance>, reqwest::Error> {
