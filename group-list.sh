@@ -7,8 +7,8 @@ cookie_jar="$("$(dirname -- "${BASH_SOURCE[0]}")/login.sh" "$edge_url")"
 
 (
     printf "%s\t%s\t%s\n" "ID" "Name" "Secret"
-    while read -r id name ; do
-        printf "%s\t%s\t%s\n" "$id" "$name"
+    while read -r id name secret; do
+        printf "%s\t%s\t%s\n" "$id" "$name" "$secret"
     done < <(curl "$edge_url/api/group/" \
         --silent \
         --get \

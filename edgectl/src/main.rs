@@ -114,6 +114,13 @@ fn main() {
                 .about("Manage appliances")
                 .subcommand_required(true)
                 .subcommand(Command::new("list"))
+                .subcommand(
+                    Command::new("show").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The appliance name to show details for"),
+                    ),
+                )
                 .subcommand(Command::new("inputs"))
                 .subcommand(Command::new("outputs"))
                 .subcommand(Command::new("delete"))
@@ -253,6 +260,14 @@ fn main() {
             Some(("list", _)) | None => {
                 let client = new_client();
                 appliance::list(client)
+            }
+            Some(("show", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::show(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },

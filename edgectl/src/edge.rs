@@ -158,26 +158,35 @@ pub struct InputAppliance {
 #[serde(rename_all = "camelCase")]
 pub struct Appliance {
     pub name: String,
-    // pub hostname: String,
-    // pub contact: String,
-    // pub serial: String,
+    pub hostname: String,
+    pub contact: String,
+    pub serial: String,
     pub id: String,
-    // version
+    pub version: ApplianceVersion,
     // lastMessageAt
-    // lastRegisteredAt
+    pub last_registered_at: Option<String>, // iso8601/rfc3339
     pub health: Option<ApplianceHealth>,
     pub physical_ports: Vec<AppliancePhysicalPort>,
     // region { id, name }
     #[serde(rename = "type")]
     pub kind: String,
     // owner is the group id
-    // pub owner: String,
-    // alarms
+    pub owner: String,
+    pub alarms: Vec<ApplianceAlarm>,
     // features
     // logLevel
     // collectHostMetrics
     // ristserverLogLevel
     // settings
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceVersion {
+    pub control_image_version: String,
+    pub control_software_version: String,
+    pub data_image_version: String,
+    pub data_software_version: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,6 +202,16 @@ pub enum ApplianceHealthState {
     Connected,
     Missing,
     NeverConnected,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceAlarm {
+    pub alarm_cause: String,
+    pub alarm_severity: String, // critical | major | minor | warning | cleared
+    pub time: String,
+    // #[serde(rename = "type")]
+    // pub kind: String, // va | edge | backend | backend-monitor | prometheus
 }
 
 #[derive(Debug, Deserialize)]

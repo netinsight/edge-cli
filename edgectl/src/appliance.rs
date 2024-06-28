@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, process};
 
 use tabled::{builder::Builder, settings::Style};
 
@@ -36,4 +36,61 @@ pub fn list(client: EdgeClient) {
     let mut table = builder.build();
     table.with(Style::empty());
     println!("{}", table)
+}
+
+pub fn show(client: EdgeClient, name: &str) {
+    let appliances = match client.find_appliances(name) {
+        Ok(appls) => appls,
+        Err(e) => {
+            println!("Failed to list appliances: {}", e);
+            process::exit(1)
+        }
+    };
+
+    if appliances.is_empty() {
+        println!("No appliance found: {}", name);
+        process::exit(1)
+    }
+
+    for appliance in appliances {
+        let group = client.get_group(&appliance.owner);
+        let group_name = group.map(|g| g.name).unwrap_or("unknown".to_owned());
+        let last_registered_at = appliance.last_registered_at.unwrap_or("unknown".to_owned());
+        let health_status = appliance
+            .health
+            .map(|h| match h.state {
+                ApplianceHealthState::Connected => format!("\x1b[32m✓\x1b[0m {}", h.title),
+                _ => format!("\x1b[31m✗\x1b[0m {}", h.title),
+            })
+            .unwrap_or("unknown".to_owned());
+
+        println!("ID:                   {}", appliance.id);
+        println!("Name:                 {}", appliance.name);
+        println!("Hostname:             {}", appliance.hostname);
+        println!("Contact:              {}", appliance.contact);
+        println!("Product name;         {}", appliance.kind); // TODO: Pretty-print
+        println!("Serial number:        {}", appliance.serial);
+        println!("Group:                {}", group_name);
+        println!(
+            "Version (control):    image={}, software={}",
+            appliance.version.control_image_version, appliance.version.control_software_version
+        );
+        println!(
+            "Version (data):       image={}, software={}",
+            appliance.version.data_image_version, appliance.version.data_software_version
+        );
+        println!("Status:               {}", health_status);
+        println!("Running since:        {}", last_registered_at);
+        if !appliance.alarms.is_empty() {
+            println!("Alarms:");
+            for alarm in appliance.alarms {
+                println!(
+                    "  - [{}] {} {}",
+                    alarm.time,
+                    alarm.alarm_severity.to_uppercase(),
+                    alarm.alarm_cause
+                );
+            }
+        }
+    }
 }
