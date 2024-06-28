@@ -317,7 +317,7 @@ pub struct SdiEncoderAudioStream {
 pub struct Group {
     pub id: String,
     pub name: String,
-    pub appliance_secret: String,
+    pub appliance_secret: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -586,6 +586,36 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn find_groups(&self, name: &str) -> Result<Vec<Group>, EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct GroupFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct GroupListResp {
+            items: Vec<Group>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: GroupFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/group/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<GroupListResp>()?.items)
     }
 
     pub fn list_groups(&self) -> Result<Vec<Group>, reqwest::Error> {

@@ -136,7 +136,14 @@ fn main() {
             Command::new("group")
                 .about("Manage groups")
                 .subcommand_required(true)
-                .subcommand(Command::new("list")),
+                .subcommand(Command::new("list"))
+                .subcommand(
+                    Command::new("show").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The group name to show details for"),
+                    ),
+                ),
         )
         .subcommand(
             Command::new("region")
@@ -289,6 +296,14 @@ fn main() {
             Some(("list", _)) | None => {
                 let client = new_client();
                 group::list(client)
+            }
+            Some(("show", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Group name is mandatory");
+                group::show(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
