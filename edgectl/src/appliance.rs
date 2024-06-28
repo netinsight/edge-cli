@@ -94,3 +94,24 @@ pub fn show(client: EdgeClient, name: &str) {
         }
     }
 }
+
+pub fn delete(client: EdgeClient, name: &str) {
+    let appliances = match client.find_appliances(name) {
+        Ok(appls) => appls,
+        Err(e) => {
+            println!("Failed to list appliances for deletion: {}", e);
+            process::exit(1)
+        }
+    };
+    if appliances.is_empty() {
+        eprintln!("Appliance not found: {}", name);
+        process::exit(1);
+    }
+    for appliance in appliances {
+        if let Err(e) = client.delete_appliance(&appliance.id) {
+            println!("Failed to delete appliance {}: {}", appliance.name, e);
+            process::exit(1);
+        }
+        println!("Deleted appliance {}", appliance.name);
+    }
+}

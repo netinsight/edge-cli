@@ -123,7 +123,13 @@ fn main() {
                 )
                 .subcommand(Command::new("inputs"))
                 .subcommand(Command::new("outputs"))
-                .subcommand(Command::new("delete"))
+                .subcommand(
+                    Command::new("delete").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The name of the appliances to delete"),
+                    ),
+                )
                 .subcommand(Command::new("config")),
         )
         .subcommand(
@@ -268,6 +274,14 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Appliance name is mandatory");
                 appliance::show(client, name)
+            }
+            Some(("delete", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::delete(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },

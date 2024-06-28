@@ -668,4 +668,12 @@ impl EdgeClient {
 
         Ok(res.json::<ApplianceListResp>()?.items)
     }
+
+    pub fn delete_appliance(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/appliance/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
 }
