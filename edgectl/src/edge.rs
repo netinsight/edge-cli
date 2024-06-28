@@ -156,6 +156,60 @@ pub struct InputAppliance {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Output {
+    pub name: String,
+    pub id: String,
+    pub admin_status: OutputAdminStatus,
+    // The ID of the group
+    // pub group: String,
+    // The ID of the input
+    // pub input: Option<String>,
+    pub health: Option<OutputHealth>,
+}
+
+#[derive(Debug)]
+pub enum OutputAdminStatus {
+    Off = 0,
+    On = 1,
+}
+
+impl<'de> Deserialize<'de> for OutputAdminStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            0 => Ok(Self::Off),
+            1 => Ok(Self::On),
+            _ => Err(D::Error::unknown_variant(&value.to_string(), &["0", "1"])),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutputHealth {
+    pub state: OutputHealthState,
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OutputHealthState {
+    NotConfigured,
+    MetricsMissing,
+    Tr101290Priority1Error,
+    ReducedRedundancy,
+    AllOk,
+    NotAcknowledged,
+    InputError,
+    OutputError,
+    Alarm,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Appliance {
     pub name: String,
     pub hostname: String,
@@ -586,6 +640,23 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn list_outputs(&self) -> Result<Vec<Output>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct OutputListResp {
+            items: Vec<Output>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/output/"#, self.url,))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<OutputListResp>()?.items)
     }
 
     pub fn find_groups(&self, name: &str) -> Result<Vec<Group>, EdgeError> {

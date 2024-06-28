@@ -2,6 +2,7 @@ mod appliance;
 mod edge;
 mod group;
 mod input;
+mod output;
 
 use std::{env, process};
 
@@ -104,10 +105,69 @@ fn main() {
             Command::new("output")
                 .about("Manage outputs")
                 .subcommand_required(true)
-                .subcommand(Command::new("list"))
-                .subcommand(Command::new("show"))
-                .subcommand(Command::new("create"))
-                .subcommand(Command::new("delete")),
+                .subcommand(
+                    Command::new("list").arg(
+                        Arg::new("output")
+                            .long("output")
+                            .short('o')
+                            .value_parser(["short", "wide"])
+                            .default_value("short")
+                            .help("Change the output format"),
+                    ),
+                )
+                .subcommand(
+                    Command::new("show").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The output name to show details for"),
+                    ),
+                )
+                .subcommand(
+                    Command::new("create")
+                        .arg(
+                            Arg::new("name")
+                                .required(true)
+                                .help("The name of the new output"),
+                        )
+                        .arg(
+                            Arg::new("appliance")
+                                .short('a')
+                                .long("appliance")
+                                .required(true)
+                                .help("The appliance to create the input on"),
+                        )
+                        .arg(
+                            Arg::new("mode")
+                                .short('m')
+                                .long("mode")
+                                .required(true)
+                                .value_parser(clap::builder::PossibleValuesParser::new([
+                                    "rtp", "udp", "sdi",
+                                ]))
+                                .help("The input mode"),
+                        )
+                        .arg(
+                            Arg::new("interface")
+                                .short('i')
+                                .long("interface")
+                                .required(true)
+                                .help("The interface on the appliance to create the input on"),
+                        )
+                        .arg(
+                            Arg::new("destination")
+                                .short('d')
+                                .long("dest")
+                                .required(false)
+                                .help("The destination to send the output to"),
+                        ),
+                )
+                .subcommand(
+                    Command::new("delete").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The name of the outputs to remove"),
+                    ),
+                ),
         )
         .subcommand(
             Command::new("appliance")
@@ -265,6 +325,39 @@ fn main() {
             }
             Some((cmd, _)) => {
                 eprintln!("Command input {cmd} is not yet implemented");
+                process::exit(1);
+            }
+            None => unreachable!("subcommand_required prevents `None`"),
+        },
+        Some(("output", subcmd)) => match subcmd.subcommand() {
+            Some(("list", args)) => {
+                let client = new_client();
+                match args.get_one::<String>("output").map(|s| s.as_str()) {
+                    Some("wide") => output::list_wide(client),
+                    _ => output::list(client),
+                };
+            }
+            Some(("show", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("output name should not be None");
+
+                output::show(client, name);
+            }
+            Some(("create", _args)) => todo!(),
+            Some(("delete", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("output should not be None");
+
+                output::delete(client, name);
+            }
+            Some((cmd, _)) => {
+                eprintln!("Command output {cmd} is not yet implemented");
                 process::exit(1);
             }
             None => unreachable!("subcommand_required prevents `None`"),
