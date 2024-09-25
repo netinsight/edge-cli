@@ -10,6 +10,7 @@ shift # positional argument name
 multicast=""
 fec=false
 thumbnail_mode=2
+bitrate=vbr # only for generator
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -41,6 +42,10 @@ while [[ $# -gt 0 ]]; do
             thumbnail_mode=0
             shift
             ;;
+        --bitrate) # only for generator inputs
+            bitrate="$2"
+            shift 2
+            ;;
 		-*)
 			echo "unknown option $1"
 			exit 1
@@ -57,6 +62,8 @@ done
 : "${mode?missing argument: mode}"
 case "$mode" in
     sdi|asi)
+        ;;
+    generator)
         ;;
     *)
         : "${port?missing argument: port}"
@@ -89,6 +96,7 @@ input_json=$(jq --null-input \
 	--arg fec "${fec-}" \
     --arg appliance_type "$appliance_type" \
     --arg thumbnail_mode "$thumbnail_mode" \
+    --arg bitrate "$bitrate" \
     '{
         name: $name,
         tr101290Enabled: true,
@@ -126,6 +134,17 @@ input_json=$(jq --null-input \
 		} else . end
         | if $appliance_type == "core" then . += {
             whitelistCidrBlock: "0.0.0.0/0",
+        } else . end
+        | if $port_mode == "generator" and $bitrate == "vbr" then . += {
+            bitrate: {
+                type: "vbr",
+            }
+        } else . end
+        | if $port_mode == "generator" and $bitrate != "vbr" then . += {
+            bitrate: {
+                type: "cbr",
+                bitrate: $bitrate | tonumber,
+            }
         } else . end
         ],
         handoverMethod: "udp",
