@@ -75,6 +75,10 @@ case "$*" in
         shift 2
         exec "$script_dir/region-list.sh" "$@"
         ;;
+    "region create"*)
+        shift 2
+        exec "$script_dir/region-create.sh" "$@"
+        ;;
     "region delete"*)
         shift 2
         exec "$script_dir/region-delete.sh" "$@"
