@@ -6,6 +6,9 @@ set -euo pipefail
 
 name="${1?missing argument: name}"
 shift # positional argument name
+fec=""
+fec_rows=5
+fec_cols=5
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -33,6 +36,29 @@ while [[ $# -gt 0 ]]; do
 			input="$2"
 			shift 2
 			;;
+        --fec)
+            case $2 in
+                1d|1D)
+                    fec='1D'
+                    ;;
+                2d|2D)
+                    fec="2D"
+                    ;;
+                *)
+                    echo >&2 "Invalid FEC mode $2, expected 1D or 2D"
+                    exit 1
+                    ;;
+            esac
+            shift 2
+            ;;
+        --fec-rows)
+            fec_rows="$2"
+            shift 2
+            ;;
+        --fec-cols)
+            fec_cols="$2"
+            shift 2
+            ;;
 		-*)
 			echo "unknown option $1"
 			exit 1
@@ -84,6 +110,9 @@ output_json=$(jq --null-input \
     --arg dest_port "$dest_port" \
     --arg input "$input_id" \
     --arg source_addr "${source_addr-}" \
+    --arg fec "$fec" \
+    --arg fec_rows "$fec_rows" \
+    --arg fec_cols "$fec_cols" \
     '{
         name: $name,
         delay: 1000,
@@ -100,6 +129,11 @@ output_json=$(jq --null-input \
         }
         | if $source_addr | length > 0 then . += {
           sourceAddress: $source_addr
+        } else . end
+        | if $fec | length > 0 then . += {
+          fec: $fec,
+          fecRows: ($fec_rows | tonumber),
+          fecCols: ($fec_cols | tonumber),
         } else . end
         | if $port_mode == "rist" then . += {
           profile: "simple",
