@@ -143,6 +143,9 @@ input_json=$(jq --null-input \
             address: $port_address,
             port: ($port | tonumber),
         } else . end
+        | if $port_mode == "rist" then . += {
+          profile: "simple",
+        } else . end
 		| if $multicast | length > 0 then . += {
             multicastAddress: $multicast,
         } else . end
