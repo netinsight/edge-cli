@@ -42,6 +42,23 @@ while [[ $# -gt 0 ]]; do
             thumbnail_mode=0
             shift
             ;;
+        --thumbnails)
+            case "$2" in
+                edge)
+                    thumbnail_mode=1
+                    ;;
+                core)
+                    thumbnail_mode=2
+                    ;;
+                none)
+                    thumbnail_mode=0
+                    ;;
+                *)
+                    echo >&2 "Invalid thumbnail mode $2"
+                    exit 1
+            esac
+            shift 2
+            ;;
         --bitrate) # only for generator inputs
             bitrate="$2"
             shift 2
