@@ -8,7 +8,7 @@ shift # positional argument name
 
 # default values
 multicast=""
-fec=false
+fec=""
 thumbnail_mode=2
 bitrate=vbr # only for generator
 
