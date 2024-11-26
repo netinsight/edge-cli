@@ -96,6 +96,7 @@ input_tsv() {
         --silent \
         --get \
         --cookie "$cookie_jar" \
+        --data 'q={"limit":5000}' \
         | jq --raw-output '.items | map([
                 .id,
                 .name,
