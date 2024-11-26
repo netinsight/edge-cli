@@ -178,6 +178,7 @@ curl "$edge_url/api/input/" \
     -H 'Accept: application/json' \
     -H 'Content-Type: application/json' \
     --cookie "$cookie_jar" \
+    --fail-with-body \
     --data "$input_json"
 
 echo >&2 "created input $name on $appliance_name"
