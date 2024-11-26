@@ -101,6 +101,9 @@ output_json=$(jq --null-input \
         | if $source_addr | length > 0 then . += {
           sourceAddress: $source_addr
         } else . end
+        | if $port_mode == "rist" then . += {
+          profile: "simple",
+        } else . end
         ],
         redundancyMode: 0,
         input: $input,
