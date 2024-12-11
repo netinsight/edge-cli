@@ -87,6 +87,10 @@ case "$*" in
         shift 2
         exec "$script_dir/region-delete.sh" "$@"
         ;;
+    "build-info"*)
+        shift
+        exec "$script_dir/build-info.sh" "$@"
+        ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
         exit 1
