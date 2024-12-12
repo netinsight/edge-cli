@@ -173,6 +173,13 @@ pub enum OutputAdminStatus {
     On = 1,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewGroup {
+    pub name: String,
+    pub appliance_secret: String,
+}
+
 impl<'de> Deserialize<'de> for OutputAdminStatus {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -736,6 +743,26 @@ impl EdgeClient {
             .send()?;
 
         res.json::<Group>()
+    }
+
+    pub fn create_group(&self, group: NewGroup) -> Result<Group, EdgeError> {
+        let res = self
+            .client
+            .post(format!("{}/api/group/", self.url))
+            .header("content-type", "application/json")
+            .json(&group)
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<Group>()?)
+    }
+
+    pub fn delete_group(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/group/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
     }
 
     pub fn get_port(&self, id: &str) -> Result<Port, reqwest::Error> {

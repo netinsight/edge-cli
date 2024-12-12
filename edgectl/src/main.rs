@@ -219,6 +219,14 @@ fn main() {
                             .required(true)
                             .help("The group name to show details for"),
                     ),
+                )
+                .subcommand(
+                    Command::new("create")
+                        .arg(Arg::new("name").required(true).help("The group name")),
+                )
+                .subcommand(
+                    Command::new("delete")
+                        .arg(Arg::new("name").required(true).help("The group name")),
                 ),
         )
         .subcommand(
@@ -431,6 +439,22 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Group name is mandatory");
                 group::show(client, name)
+            }
+            Some(("create", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Group name is mandatory");
+                group::create(client, name)
+            }
+            Some(("delete", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Group name is mandatory");
+                group::delete(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
