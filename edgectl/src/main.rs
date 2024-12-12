@@ -55,7 +55,10 @@ fn main() {
                                 .long("mode")
                                 .required(true)
                                 .value_parser(clap::builder::PossibleValuesParser::new([
-                                    "rtp", "udp", "sdi",
+                                    "rtp",
+                                    "udp",
+                                    "sdi",
+                                    "generator",
                                 ]))
                                 .help("The input mode"),
                         )
@@ -63,7 +66,7 @@ fn main() {
                             Arg::new("interface")
                                 .short('i')
                                 .long("interface")
-                                .required(true)
+                                .required(false)
                                 .help("The interface on the appliance to create the input on"),
                         )
                         .arg(
@@ -91,6 +94,19 @@ fn main() {
                             Arg::new("multicast")
                                 .long("multicast")
                                 .help("Specify source multicast address for RTP and UDP inputs"),
+                        )
+                        .arg(
+                            Arg::new("bitrate")
+                                .long("bitrate")
+                                .num_args(1)
+                                .value_parser(|val: &str| -> Result<input::Bitrate, String> {
+                                    if val == "vbr" {
+                                        Ok(input::Bitrate::Vbr)
+                                    } else {
+                                        parse_bitrate(val).map(input::Bitrate::Cbr)
+                                    }
+                                })
+                                .help("Set bitrate for generator"),
                         ),
                 )
                 .subcommand(
@@ -242,16 +258,14 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("appliance is required");
                 let port = args.get_one::<u16>("port");
-                let interface = args
-                    .get_one::<String>("interface")
-                    .map(|s| s.as_str())
-                    .expect("interface is required");
+                let interface = args.get_one::<String>("interface").map(|s| s.as_str());
                 let mode = args
                     .get_one::<String>("mode")
                     .map(|s| s.as_str())
                     .expect("mode is required");
                 let disable_thumbnails = args.get_flag("disable-thumbnails");
                 let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
+                let bitrate = args.get_one::<input::Bitrate>("bitrate");
 
                 if port.is_some() && mode != "rtp" && mode != "udp" {
                     eprintln!("The port flag is not supported with mode {}", mode);
@@ -267,6 +281,23 @@ fn main() {
                     eprintln!("The multicast flag is not supported with mode {}", mode);
                     process::exit(1);
                 }
+
+                if bitrate.is_some() && mode != "generator" {
+                    eprintln!("Bitrate is only supported for generator inputs");
+                    process::exit(1);
+                }
+
+                let interface = {
+                    if mode == "generator" {
+                        if interface.is_some() {
+                            eprintln!("Cannot specify interface for generator input");
+                            process::exit(1)
+                        }
+                        "lo"
+                    } else {
+                        interface.expect("interface is required")
+                    }
+                };
 
                 let mode = match mode {
                     "rtp" => {
@@ -297,6 +328,9 @@ fn main() {
                         })
                     }
                     "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {}),
+                    "generator" => input::NewInputMode::Generator(input::NewGeneratorInputMode {
+                        bitrate: bitrate.unwrap_or(&input::Bitrate::Vbr).clone(),
+                    }),
                     e => {
                         eprintln!("Invalid mode: {}", e);
                         process::exit(1);
@@ -423,4 +457,53 @@ fn new_client() -> EdgeClient {
     }
 
     client
+}
+
+fn parse_bitrate(val: &str) -> Result<u64, String> {
+    let num_end = val.find(|c: char| !c.is_ascii_digit()).unwrap_or(val.len());
+    let (num, unit) = val.split_at(num_end);
+    if let Ok(num) = num.parse::<u64>() {
+        match unit {
+            "k" | "kb" | "kbps" => Ok(1000 * num),
+            "ki" | "kib" => Ok(1024 * num),
+            "M" | "Mb" | "Mbps" => Ok(1000 * 1000 * num),
+            "Mi" | "Mib" => Ok(1024 * 1024 * num),
+            "" => Ok(num),
+            _ => Err(format!("Invalid bitrate: {}", val)),
+        }
+    } else {
+        Err(format!("Invalid bitrate: {}", val))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_parses_bitrate() {
+        fn test_bitrate(bitrate: &str, res: Result<u64, String>) {
+            assert_eq!(
+                parse_bitrate(bitrate),
+                res,
+                "Got wrong result when parsing {}",
+                bitrate,
+            );
+        }
+        test_bitrate("1024", Ok(1024));
+        test_bitrate("1000", Ok(1000));
+        test_bitrate("1k", Ok(1000));
+        test_bitrate("1kb", Ok(1000));
+        test_bitrate("1kbps", Ok(1000));
+        test_bitrate("1Mbps", Ok(1_000_000));
+        test_bitrate("1Mb", Ok(1_000_000));
+        test_bitrate("1Mib", Ok(1024 * 1024));
+        test_bitrate("1Mib", Ok(1024 * 1024));
+        test_bitrate("12345Mib", Ok(12345 * 1024 * 1024));
+        test_bitrate("1mib", Err("Invalid bitrate: 1mib".to_owned()));
+        test_bitrate("", Err("Invalid bitrate: ".to_owned()));
+        test_bitrate("1 Kbps", Err("Invalid bitrate: 1 Kbps".to_owned()));
+        test_bitrate("1 Kbps", Err("Invalid bitrate: 1 Kbps".to_owned()));
+        test_bitrate("1Kbps", Err("Invalid bitrate: 1Kbps".to_owned()));
+    }
 }

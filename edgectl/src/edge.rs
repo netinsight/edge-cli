@@ -314,6 +314,7 @@ pub enum NewInputPort {
     Rtp(RtpInputPort),
     Udp(UdpInputPort),
     Sdi(SdiInputPort),
+    Generator(GeneratorInputPort),
 }
 
 #[derive(Debug, Serialize)]
@@ -364,6 +365,28 @@ pub struct SdiEncoderAudioStream {
     pub bitrate: u16,
     #[serde(rename = "type")]
     pub kind: String, // enum: stereo | mono
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratorInputPort {
+    pub copies: u8,
+    pub physical_port: String,
+    pub bitrate: GeneratorBitrate,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+pub enum GeneratorBitrate {
+    Vbr,
+    Cbr(GeneratorBitrateCBR),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratorBitrateCBR {
+    pub bitrate: u64,
 }
 
 #[derive(Debug, Deserialize)]

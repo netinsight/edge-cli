@@ -5,8 +5,9 @@ use std::process;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    EdgeClient, InputAdminStatus, NewInputPort, RtpInputPort, SdiEncoderAudioStream,
-    SdiEncoderSettings, SdiInputPort, ThumbnailMode, UdpInputPort,
+    EdgeClient, GeneratorBitrate, GeneratorBitrateCBR, GeneratorInputPort, InputAdminStatus,
+    NewInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort,
+    ThumbnailMode, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -161,6 +162,7 @@ pub enum NewInputMode {
     Rtp(NewRtpInputMode),
     Udp(NewUdpInputMode),
     Sdi(NewSdiInputMode),
+    Generator(NewGeneratorInputMode),
 }
 
 pub struct NewRtpInputMode {
@@ -173,6 +175,16 @@ pub struct NewUdpInputMode {
     pub multicast_address: Option<String>,
 }
 pub struct NewSdiInputMode {}
+
+pub struct NewGeneratorInputMode {
+    pub bitrate: Bitrate,
+}
+
+#[derive(Clone)]
+pub enum Bitrate {
+    Vbr,
+    Cbr(u64),
+}
 
 pub fn create(client: EdgeClient, new_input: NewInput) {
     let appl = match client.find_appliances(&new_input.appliance) {
@@ -253,6 +265,14 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                     bitrate: 1920,
                     kind: "stereo".to_owned(),
                 }],
+            },
+        })],
+        NewInputMode::Generator(generator) => vec![NewInputPort::Generator(GeneratorInputPort {
+            copies: 1,
+            physical_port: interface.id.to_owned(),
+            bitrate: match generator.bitrate {
+                Bitrate::Vbr => GeneratorBitrate::Vbr,
+                Bitrate::Cbr(bitrate) => GeneratorBitrate::Cbr(GeneratorBitrateCBR { bitrate }),
             },
         })],
     };
