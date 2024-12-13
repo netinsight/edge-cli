@@ -161,16 +161,106 @@ pub struct Output {
     pub id: String,
     pub admin_status: OutputAdminStatus,
     // The ID of the group
-    // pub group: String,
+    pub group: String,
     // The ID of the input
-    // pub input: Option<String>,
+    pub input: Option<String>,
     pub health: Option<OutputHealth>,
+    pub redundancy_mode: Option<OutputRedundancyMode>,
+    pub delay: Option<u32>, // in ms
+    pub delay_mode: Option<OutputDelayMode>,
+    pub created_at: String, // really a date
+    pub updated_at: String, // really a date
+    pub misconfigured: Option<bool>,
+    pub alarms: Option<Vec<OutputAlarm>>,
+    pub appliances: Vec<LimitedAppliance>,
+    pub ports: Vec<OutputPort>,
 }
 
 #[derive(Debug)]
 pub enum OutputAdminStatus {
     Off = 0,
     On = 1,
+}
+
+impl fmt::Display for OutputAdminStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::On => write!(f, "on"),
+            Self::Off => write!(f, "off"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OutputRedundancyMode {
+    None = 0,
+    Failover = 1,
+    Active = 2,
+}
+
+impl fmt::Display for OutputRedundancyMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => write!(f, "none"),
+            Self::Failover => write!(f, "failover"),
+            Self::Active => write!(f, "active"),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for OutputRedundancyMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            0 => Ok(Self::None),
+            1 => Ok(Self::Failover),
+            2 => Ok(Self::Active),
+            _ => Err(D::Error::unknown_variant(
+                &value.to_string(),
+                &["0", "1", "2"],
+            )),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OutputDelayMode {
+    BasedOnArrivalTime = 1,
+    BasedOnOriginTime = 2,
+}
+
+impl fmt::Display for OutputDelayMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BasedOnArrivalTime => write!(f, "On Arrival"),
+            Self::BasedOnOriginTime => write!(f, "On Origin"),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for OutputDelayMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            1 => Ok(Self::BasedOnArrivalTime),
+            2 => Ok(Self::BasedOnOriginTime),
+            _ => Err(D::Error::unknown_variant(&value.to_string(), &["1", "2"])),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutputAlarm {
+    pub alarm_cause: String,
+    pub alarm_severity: String,
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -217,6 +307,122 @@ pub enum OutputHealthState {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(tag = "mode")]
+pub enum OutputPort {
+    Udp(UdpOutputPort),
+    Rtp(RtpOutputPort),
+    Rist(RistOutputPort),
+    Srt(SrtOutputPort),
+    Rtmp(RtmpOutputPort),
+    Zixi(ZixiOutputPort),
+    Unix(UnixOutputPort),
+    Sdi(SdiOutputPort),
+    Asi(AsiOutputPort),
+    MatroxSdi(MatroxSdiOutputPort),
+    ComprimatoSdi(ComprimatoSdiOutputPort),
+    ComprimatoNdi(ComprimatoNdiOutputPort),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UdpOutputPort {
+    pub address: String,
+    pub port: u16,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtpOutputPort {
+    pub address: String,
+    pub port: u16,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RistOutputPort {
+    pub profile: String,
+    pub address: String,
+    pub port: u16,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "srtMode")]
+pub enum SrtOutputPort {
+    Listener(SrtListenerOutputPort),
+    Caller(SrtCallerOutputPort),
+    Rendezvous(SrtRendezvousOutputPort),
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SrtListenerOutputPort {
+    pub local_ip: String,
+    pub local_port: u16,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SrtCallerOutputPort {
+    pub remote_ip: String,
+    pub remote_port: String,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SrtRendezvousOutputPort {
+    pub local_ip: String,
+    pub remote_ip: String,
+    pub remote_port: u16, // Both local and remote port
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RtmpOutputPort {
+    pub rtmp_destination_address: String,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "zixiMode")]
+pub enum ZixiOutputPort {
+    Pull(ZixiPullOutputPort),
+    Push(ZixiPushOutputPort),
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZixiPullOutputPort {
+    pub stream_id: String,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZixiPushOutputPort {
+    pub stream_id: String,
+    pub link_set_1: Vec<ZixiLink>, // ZixiLinkSet: length 1, 2 or 3
+    pub link_set_2: Option<Vec<ZixiLink>>, // ZixiLinkSet: length 1, 2 or 3
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZixiLink {
+    // pub local_ip: String,
+    pub remote_ip: String,
+    pub remote_port: u16,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnixOutputPort {}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdiOutputPort {
+    pub physical_port: String,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsiOutputPort {}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MatroxSdiOutputPort {}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComprimatoSdiOutputPort {}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComprimatoNdiOutputPort {}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Appliance {
     pub name: String,
     pub hostname: String,
@@ -239,6 +445,17 @@ pub struct Appliance {
     // collectHostMetrics
     // ristserverLogLevel
     // settings
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LimitedAppliance {
+    // pub id: String,
+    pub name: String,
+    // #[serde(rename = "type")]
+    // pub kind: String,
+    // region { id, name }
+    // secondaryRegion
 }
 
 #[derive(Debug, Deserialize)]
@@ -625,6 +842,16 @@ impl EdgeClient {
         Ok(res.json::<InputListResp>()?.items)
     }
 
+    pub fn get_input(&self, id: &str) -> Result<Input, reqwest::Error> {
+        let res = self
+            .client
+            .get(format!(r#"{}/api/input/{}"#, self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        res.json::<Input>()
+    }
+
     pub fn find_inputs(&self, name: &str) -> Result<Vec<Input>, reqwest::Error> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -685,6 +912,35 @@ impl EdgeClient {
             .header("content-type", "application/json")
             .send()?
             .error_if_not_success()?;
+
+        Ok(res.json::<OutputListResp>()?.items)
+    }
+
+    pub fn find_outputs(&self, name: &str) -> Result<Vec<Output>, reqwest::Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct OutputFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct OutputListResp {
+            items: Vec<Output>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: OutputFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/output/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
 
         Ok(res.json::<OutputListResp>()?.items)
     }
