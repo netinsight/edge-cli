@@ -546,7 +546,7 @@ pub struct AppliancePhysicalPort {
     // example: 86:71:48:3b:e3:1b
     // pub mac: String,
     // pub index: String,
-    // pub portType: enum?,
+    pub port_type: AppliancePortType,
     // pub appliance: { id, name, type, version }
     // owner is the group id
     // pub owner: Strig,
@@ -556,9 +556,19 @@ pub struct AppliancePhysicalPort {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub enum AppliancePortType {
+    Ip,
+    Coax,
+    Videon,
+    Ndi,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PhysicalPortAddress {
     pub address: String,
     // pub netmask: String,
+    pub public_address: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

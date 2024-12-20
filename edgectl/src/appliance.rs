@@ -2,7 +2,7 @@ use std::{fmt, process};
 
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::{ApplianceHealthState, EdgeClient};
+use crate::edge::{ApplianceHealthState, AppliancePortType, EdgeClient};
 
 impl fmt::Display for ApplianceHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -10,6 +10,17 @@ impl fmt::Display for ApplianceHealthState {
             Self::Connected => write!(f, "\x1b[32m✓\x1b[0m connected"),
             Self::Missing => write!(f, "\x1b[31m✗\x1b[0m missing"),
             Self::NeverConnected => write!(f, "\x1b[31m✗\x1b[0m never connected"),
+        }
+    }
+}
+
+impl fmt::Display for AppliancePortType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ip => f.pad("IP"),
+            Self::Coax => f.pad("Coax"),
+            Self::Videon => f.pad("Videon"),
+            Self::Ndi => f.pad("Ndi"),
         }
     }
 }
@@ -79,6 +90,18 @@ pub fn show(client: EdgeClient, name: &str) {
             "Version (data):       image={}, software={}",
             appliance.version.data_image_version, appliance.version.data_software_version
         );
+        println!("Interfaces:");
+        for iface in appliance.physical_ports {
+            println!("  - Name: {}", iface.name);
+            println!("    Type: {}", iface.port_type);
+            println!("    Addresses:");
+            for addr in iface.addresses {
+                println!("      - Address: {}", addr.address);
+                if let Some(public) = addr.public_address {
+                    println!("        Public: {}", public);
+                }
+            }
+        }
         println!("Status:               {}", health_status);
         println!("Running since:        {}", last_registered_at);
         if !appliance.alarms.is_empty() {
