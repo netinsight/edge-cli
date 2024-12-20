@@ -5,8 +5,8 @@ use std::process;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    EdgeClient, Output, OutputAdminStatus, OutputHealthState, OutputPort, SrtOutputPort,
-    ZixiOutputPort,
+    EdgeClient, Output, OutputAdminStatus, OutputHealthState, OutputPort, OutputPortFec,
+    SrtOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -183,8 +183,25 @@ pub fn show(client: EdgeClient, name: &str) {
                 }
                 OutputPort::Rtp(port) => {
                     let addr = format!("{}:{}", port.address, port.port);
+                    let fec = match port.fec {
+                        Some(fec) => format!(
+                            "{}: {}×{}",
+                            match fec {
+                                OutputPortFec::Fec1D => "1D",
+                                OutputPortFec::Fec2D => "2D",
+                            },
+                            port.fec_rows
+                                .map(|r| r.to_string())
+                                .unwrap_or("".to_owned()),
+                            port.fec_cols
+                                .map(|r| r.to_string())
+                                .unwrap_or("".to_owned()),
+                        ),
+                        None => "no".to_owned(),
+                    };
                     println!("  - Mode:             RTP");
                     println!("    Dest:             {}", addr);
+                    println!("    FEC:              {}", fec);
                 }
                 OutputPort::Sdi(port) => {
                     let physical_port = match client.get_port(&port.physical_port) {

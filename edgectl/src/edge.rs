@@ -334,6 +334,20 @@ pub struct UdpOutputPort {
 pub struct RtpOutputPort {
     pub address: String,
     pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fec: Option<OutputPortFec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fec_rows: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fec_cols: Option<u8>,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OutputPortFec {
+    #[serde(rename = "1D")]
+    Fec1D,
+    #[serde(rename = "2D")]
+    Fec2D,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
