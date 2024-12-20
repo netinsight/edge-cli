@@ -195,6 +195,18 @@ pub fn outputs(client: EdgeClient, name: &str) {
     println!("{}", table)
 }
 
+pub fn config(client: EdgeClient, name: &str) {
+    let appliance = get_appliance(&client, name);
+    let config = match client.get_appliance_config(&appliance.id) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to get appliance config: {}", e);
+            process::exit(1);
+        }
+    };
+    println!("{}", serde_json::to_string_pretty(&config).unwrap());
+}
+
 fn get_appliance(client: &EdgeClient, name: &str) -> Appliance {
     let mut appliances = match client.find_appliances(name) {
         Ok(appls) => appls,

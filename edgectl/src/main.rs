@@ -242,7 +242,13 @@ fn main() {
                             .help("The name of the appliances to delete"),
                     ),
                 )
-                .subcommand(Command::new("config")),
+                .subcommand(
+                    Command::new("config").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The name of the appliance"),
+                    ),
+                )
         )
         .subcommand(
             Command::new("group")
@@ -586,6 +592,14 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Appliance name is mandatory");
                 appliance::outputs(client, name)
+            }
+            Some(("config", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::config(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },

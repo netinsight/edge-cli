@@ -1213,4 +1213,14 @@ impl EdgeClient {
 
         Ok(res.json::<OutputListResp>()?.items)
     }
+
+    pub fn get_appliance_config(&self, id: &str) -> Result<serde_json::Value, EdgeError> {
+        let res = self
+            .client
+            .get(format!(r#"{}/api/appliance/{}/config"#, self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json()?)
+    }
 }
