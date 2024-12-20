@@ -707,6 +707,60 @@ pub struct Port {
     pub name: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Region {
+    pub id: String,
+    pub name: String,
+    pub default_region: Option<bool>,
+    pub external: ExternalRegionMode,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewRegion {
+    pub name: String,
+    pub external: ExternalRegionMode,
+}
+
+#[derive(Debug)]
+pub enum ExternalRegionMode {
+    Core = 0,
+    ExternalK8s = 1,
+    External = 2,
+}
+
+impl<'de> Deserialize<'de> for ExternalRegionMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            0 => Ok(Self::Core),
+            1 => Ok(Self::ExternalK8s),
+            2 => Ok(Self::External),
+            _ => Err(D::Error::unknown_variant(
+                &value.to_string(),
+                &["0", "1", "2"],
+            )),
+        }
+    }
+}
+
+impl Serialize for ExternalRegionMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Core => serializer.serialize_u8(0),
+            Self::ExternalK8s => serializer.serialize_u8(1),
+            Self::External => serializer.serialize_u8(2),
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct EdgeQuery<T: Serialize> {
     filter: T,
@@ -1227,6 +1281,69 @@ impl EdgeClient {
     pub fn restart_appliance(&self, id: &str) -> Result<(), EdgeError> {
         self.client
             .post(format!("{}/api/appliance/{}/restart", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn list_regions(&self) -> Result<Vec<Region>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct RegionListResp {
+            items: Vec<Region>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/region/"#, self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<RegionListResp>()?.items)
+    }
+
+    pub fn find_region(&self, name: &str) -> Result<Vec<Region>, reqwest::Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct RegionFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct RegionListResp {
+            items: Vec<Region>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: RegionFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/region/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<RegionListResp>()?.items)
+    }
+
+    pub fn create_region(&self, region: NewRegion) -> Result<(), EdgeError> {
+        self.client
+            .post(format!("{}/api/region/", self.url))
+            .header("content-type", "application/json")
+            .json(&region)
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn delete_region(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/region/{}", self.url, id))
             .send()?
             .error_if_not_success()
             .map(|_| ())

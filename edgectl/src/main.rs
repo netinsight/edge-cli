@@ -3,6 +3,7 @@ mod edge;
 mod group;
 mod input;
 mod output;
+mod region;
 
 use std::{env, process};
 
@@ -281,8 +282,17 @@ fn main() {
         .subcommand(
             Command::new("region")
                 .about("Manage regions")
-                .subcommand(Command::new("list"))
-                .subcommand(Command::new("delete")),
+                .subcommand(Command::new("list").about("List regions"))
+                .subcommand(Command::new("create").arg(
+                        Arg::new("name")
+                        .required(true)
+                        .help("The name of the region to create")
+                ))
+                .subcommand(Command::new("delete").arg(
+                        Arg::new("name")
+                        .required(true)
+                        .help("The name of the region to create")
+                )),
         )
         .get_matches();
 
@@ -646,6 +656,26 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Group name is mandatory");
                 group::delete(client, name)
+            }
+            _ => unreachable!("subcommand_required prevents `None` or other options"),
+        },
+        Some(("region", subcmd)) => match subcmd.subcommand() {
+            Some(("list", _)) | None => region::list(new_client()),
+            Some(("create", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Region name is mandatory");
+                region::create(client, name)
+            }
+            Some(("delete", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Region name is mandatory");
+                region::delete(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
