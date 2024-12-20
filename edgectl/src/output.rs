@@ -1,12 +1,12 @@
-// use std::collections::BTreeMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::process;
 
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    EdgeClient, Output, OutputAdminStatus, OutputHealthState, OutputPort, OutputPortFec,
-    RtpOutputPort, SrtOutputPort, UdpOutputPort, ZixiOutputPort,
+    EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
+    OutputPortFec, RtpOutputPort, SrtOutputPort, UdpOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -61,8 +61,85 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn list_wide(_client: EdgeClient) {
-    todo!()
+pub fn list_wide(client: EdgeClient) {
+    let outputs = client.list_outputs().expect("Failed to list outputs");
+    let mut builder = Builder::default();
+    builder.push_record([
+        "ID",
+        "Name",
+        "Group",
+        "Enabled",
+        "Input",
+        "Redudancy",
+        "Delay",
+        "Delay,mode",
+        "Appliances",
+        "Health",
+    ]);
+    let groups: Vec<String> = outputs.iter().map(|o| o.group.clone()).collect();
+    // TODO: Improve performance here by doing a bulk fetch of groups
+    let groups: BTreeMap<String, Group> = groups
+        .into_iter()
+        .filter_map(|id| {
+            let group = client.get_group(&id);
+            group.map(|group| (id, group)).ok()
+        })
+        .collect();
+    let inputs: Vec<String> = outputs
+        .iter()
+        .filter_map(|o| o.input.as_ref().map(|i| i.to_owned()))
+        .collect();
+    // TODO: Improve performance here by doing a bulk fetch of inputs
+    let inputs: BTreeMap<String, Input> = inputs
+        .into_iter()
+        .filter_map(|id| {
+            let input = client.get_input(&id);
+            input.map(|input| (id, input)).ok()
+        })
+        .collect();
+    for output in outputs {
+        let health = output.health_fmt();
+        let input = match output.input {
+            Some(input) => inputs
+                .get(&input)
+                .map(|i| i.name.to_owned())
+                .unwrap_or(input),
+            None => "".to_owned(),
+        };
+        builder.push_record([
+            output.id,
+            output.name,
+            groups
+                .get(&output.group)
+                .map(|g| g.name.to_owned())
+                .unwrap_or(output.group),
+            output.admin_status.to_string(),
+            input,
+            output
+                .redundancy_mode
+                .map(|m| m.to_string())
+                .unwrap_or("".to_owned()),
+            output
+                .delay
+                .map(|d| format!("{}ms", d))
+                .unwrap_or("".to_owned()),
+            output
+                .delay_mode
+                .map(|m| m.to_string())
+                .unwrap_or("".to_owned()),
+            output
+                .appliances
+                .into_iter()
+                .map(|a| a.name)
+                .collect::<Vec<String>>()
+                .join(", "),
+            health,
+        ]);
+    }
+
+    let mut table = builder.build();
+    table.with(Style::empty());
+    println!("{}", table)
 }
 
 pub fn show(client: EdgeClient, name: &str) {
