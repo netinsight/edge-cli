@@ -1,4 +1,5 @@
 mod appliance;
+mod buildinfo;
 mod edge;
 mod group;
 mod input;
@@ -293,6 +294,10 @@ fn main() {
                         .required(true)
                         .help("The name of the region to create")
                 )),
+        )
+        .subcommand(
+            Command::new("build-info")
+                .about("Show build information for installation")
         )
         .get_matches();
 
@@ -679,6 +684,14 @@ fn main() {
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
+        Some(("build-info", _)) => {
+            let client = EdgeClient::with_url(
+                env::var("EDGE_URL")
+                    .expect("missing environment variable: EDGE_URL")
+                    .as_ref(),
+            );
+            buildinfo::show(client)
+        }
         Some((cmd, _)) => {
             eprintln!("Command {cmd} is not yet implemented");
             process::exit(1);

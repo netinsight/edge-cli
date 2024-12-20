@@ -761,6 +761,44 @@ impl Serialize for ExternalRegionMode {
     }
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildInfo {
+    pub product: Product,
+    pub build_time: String,
+    pub release: String,
+    pub commit: String,
+    pub pipeline: String,
+    // entitlements_public_key: String,
+    // entitlements_public_key_hash: String,
+}
+
+#[derive(Debug)]
+pub enum Product {
+    NimbraEdge,
+    ConnectIt,
+}
+
+impl<'de> Deserialize<'de> for Product {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        match value.as_ref() {
+            "705be4c2-0e82-4356-9ce2-6484c116796f" => Ok(Self::NimbraEdge),
+            "d0b70d6d-8db6-4524-8d4f-7ee716af241a" => Ok(Self::ConnectIt),
+            _ => Err(D::Error::unknown_variant(
+                &value.to_string(),
+                &[
+                    "705be4c2-0e82-4356-9ce2-6484c116796f",
+                    "d0b70d6d-8db6-4524-8d4f-7ee716af241a",
+                ],
+            )),
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct EdgeQuery<T: Serialize> {
     filter: T,
@@ -1347,5 +1385,15 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn get_build_info(&self) -> Result<BuildInfo, EdgeError> {
+        let res = self
+            .client
+            .get(format!(r#"{}/api/build-info"#, self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<BuildInfo>()?)
     }
 }
