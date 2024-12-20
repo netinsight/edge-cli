@@ -164,7 +164,6 @@ fn main() {
                         )
                         .arg(
                             Arg::new("interface")
-                                .short('i')
                                 .long("interface")
                                 .required(true)
                                 .help("The interface on the appliance to create the input on"),
@@ -396,7 +395,10 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("output should not be None");
 
-                output::delete(client, name);
+                if let Err(e) = output::delete(client, name) {
+                    eprintln!("Failed to delete output {}: {}", name, e);
+                    process::exit(1);
+                }
             }
             Some((cmd, _)) => {
                 eprintln!("Command output {cmd} is not yet implemented");

@@ -959,6 +959,14 @@ impl EdgeClient {
         Ok(res.json::<OutputListResp>()?.items)
     }
 
+    pub fn delete_output(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/output/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
     pub fn find_groups(&self, name: &str) -> Result<Vec<Group>, EdgeError> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]

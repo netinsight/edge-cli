@@ -241,6 +241,25 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn delete(_client: EdgeClient, _name: &str) {
-    todo!()
+pub fn delete(client: EdgeClient, name: &str) -> Result<(), reqwest::Error> {
+    let outputs = match client.find_outputs(name) {
+        Ok(outputs) => outputs,
+        Err(e) => {
+            println!("Failed to list outputs for deleteion: {}", e);
+            process::exit(1);
+        }
+    };
+    if outputs.is_empty() {
+        eprintln!("Output not found: {}", name);
+        process::exit(1);
+    }
+    for output in outputs {
+        if let Err(e) = client.delete_output(&output.id) {
+            println!("Failed to delete output {}: {}", output.name, e);
+            process::exit(1);
+        }
+        println!("Deleted output {}", output.name);
+    }
+
+    Ok(())
 }
