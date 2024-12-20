@@ -571,6 +571,30 @@ pub struct PhysicalPortAddress {
     pub public_address: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceInput {
+    // pub appliance_id: String,
+    // pub appliance_name: String,
+    pub input_name: String,
+    pub input_group: String,
+    pub input_admin_status: InputAdminStatus,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceOutput {
+    // pub appliance_id: String,
+    // pub appliance_name: String,
+    // pub input_name: String,
+    // pub input_group: String,
+    // pub input_admin_status: InputAdminStatus,
+    // pub output_id: String,
+    pub output_name: String,
+    pub output_group: String,
+    pub output_admin_status: OutputAdminStatus,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputPort {
@@ -1156,5 +1180,37 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn get_appliance_inputs(&self, id: &str) -> Result<Vec<ApplianceInput>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct InputListResp {
+            items: Vec<ApplianceInput>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/appliance/{}/inputs"#, self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<InputListResp>()?.items)
+    }
+
+    pub fn get_appliance_outputs(&self, id: &str) -> Result<Vec<ApplianceOutput>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct OutputListResp {
+            items: Vec<ApplianceOutput>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/appliance/{}/outputs"#, self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<OutputListResp>()?.items)
     }
 }

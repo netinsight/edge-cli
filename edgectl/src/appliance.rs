@@ -2,7 +2,7 @@ use std::{fmt, process};
 
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::{ApplianceHealthState, AppliancePortType, EdgeClient};
+use crate::edge::{Appliance, ApplianceHealthState, AppliancePortType, EdgeClient};
 
 impl fmt::Display for ApplianceHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -136,5 +136,85 @@ pub fn delete(client: EdgeClient, name: &str) {
             process::exit(1);
         }
         println!("Deleted appliance {}", appliance.name);
+    }
+}
+
+pub fn inputs(client: EdgeClient, name: &str) {
+    let appliance = get_appliance(&client, name);
+    let inputs = match client.get_appliance_inputs(&appliance.id) {
+        Ok(inputs) => inputs,
+        Err(e) => {
+            eprintln!("Failed to list inputs for appliance: {}", e);
+            process::exit(1);
+        }
+    };
+
+    let mut builder = Builder::default();
+    builder.push_record(["Name", "Group", "Status"]);
+
+    for input in inputs {
+        let group = client.get_group(&input.input_group);
+        let group = group.map(|g| g.name).unwrap_or("unknown".to_owned());
+        builder.push_record([
+            input.input_name,
+            group,
+            input.input_admin_status.to_string(),
+        ]);
+    }
+
+    let mut table = builder.build();
+    table.with(Style::empty());
+    println!("{}", table)
+}
+
+pub fn outputs(client: EdgeClient, name: &str) {
+    let appliance = get_appliance(&client, name);
+    let outputs = match client.get_appliance_outputs(&appliance.id) {
+        Ok(outputs) => outputs,
+        Err(e) => {
+            eprintln!("Failed to list inputs for appliance: {}", e);
+            process::exit(1);
+        }
+    };
+
+    let mut builder = Builder::default();
+    builder.push_record(["Name", "Group", "Status"]);
+
+    for output in outputs {
+        let group = client.get_group(&output.output_group);
+        let group = group.map(|g| g.name).unwrap_or("unknown".to_owned());
+        builder.push_record([
+            output.output_name,
+            group,
+            output.output_admin_status.to_string(),
+        ]);
+    }
+
+    let mut table = builder.build();
+    table.with(Style::empty());
+    println!("{}", table)
+}
+
+fn get_appliance(client: &EdgeClient, name: &str) -> Appliance {
+    let mut appliances = match client.find_appliances(name) {
+        Ok(appls) => appls,
+        Err(e) => {
+            println!("Failed to list appliances for deleteion: {}", e);
+            process::exit(1)
+        }
+    };
+    if appliances.len() > 1 {
+        eprintln!("Found multiple appliances matching {}:", name);
+        for appl in appliances {
+            eprintln!("{}", appl.name);
+        }
+        process::exit(1);
+    }
+    match appliances.pop() {
+        Some(appliance) => appliance,
+        None => {
+            eprintln!("Appliance not found: {}", name);
+            process::exit(1);
+        }
     }
 }

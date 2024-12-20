@@ -223,8 +223,18 @@ fn main() {
                             .help("The appliance name to show details for"),
                     ),
                 )
-                .subcommand(Command::new("inputs"))
-                .subcommand(Command::new("outputs"))
+                .subcommand(Command::new("inputs").about("List appliance inputs").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The appliance name to show details for"),
+                    ),
+                )
+                .subcommand(Command::new("outputs").about("List appliance outputs").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The appliance name to show details for"),
+                    ),
+                )
                 .subcommand(
                     Command::new("delete").arg(
                         Arg::new("name")
@@ -560,6 +570,22 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Appliance name is mandatory");
                 appliance::delete(client, name)
+            }
+            Some(("inputs", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::inputs(client, name)
+            }
+            Some(("outputs", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::outputs(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
