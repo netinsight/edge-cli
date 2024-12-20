@@ -169,11 +169,38 @@ fn main() {
                                 .help("The interface on the appliance to create the input on"),
                         )
                         .arg(
+                            Arg::new("input")
+                                .long("input")
+                                .required(true)
+                                .help("The input to send to the output"),
+                        )
+                        .arg(
                             Arg::new("destination")
                                 .short('d')
                                 .long("dest")
                                 .required(false)
-                                .help("The destination to send the output to"),
+                                .help("The destination to send the output to in format ip:port, e.g. 198.51.100.12:4000"),
+                        )
+                        .arg(
+                            Arg::new("fec")
+                                .long("fec")
+                                .value_parser(["1D", "2D"])
+                                .required(false)
+                                .help("Enable FEC for RTP outputs"),
+                        )
+                        .arg(
+                            Arg::new("fec-rows")
+                                .long("fec-rows")
+                                .value_parser(clap::value_parser!(u8).range(4..20))
+                                .required(false)
+                                .help("FEC rows"),
+                        )
+                        .arg(
+                            Arg::new("fec-cols")
+                                .long("fec-cols")
+                                .value_parser(clap::value_parser!(u8).range(1..20))
+                                .required(false)
+                                .help("FEC columns"),
                         ),
                 )
                 .subcommand(
@@ -387,7 +414,114 @@ fn main() {
 
                 output::show(client, name);
             }
-            Some(("create", _args)) => todo!(),
+            Some(("create", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("name is required");
+                let appliance = args
+                    .get_one::<String>("appliance")
+                    .map(|s| s.as_str())
+                    .expect("appliance is required");
+                let mode = args
+                    .get_one::<String>("mode")
+                    .map(|s| s.as_str())
+                    .expect("mode is required");
+                let dest = args.get_one::<String>("destination").map(|s| s.as_str());
+                let interface = args
+                    .get_one::<String>("interface")
+                    .map(|s| s.as_str())
+                    .expect("interface is required");
+                let input = args
+                    .get_one::<String>("input")
+                    .map(|s| s.as_str())
+                    .expect("input is required");
+
+                if args.get_one::<String>("fec").is_some() && mode != "rtp" {
+                    eprintln!("The --fec argument is only supported for --mode rtp");
+                    process::exit(1);
+                }
+
+                let mode = match mode {
+                    "rtp" => {
+                        let dest = match dest {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for UDP outputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+
+                        let fec = args.get_one::<String>("fec").map(|fec| {
+                            match (args.get_one::<u8>("fec-rows"),args.get_one::<u8>("fec-cols")) {
+                                (Some(rows), Some(cols)) => output::Fec {
+                                    mode: match fec.as_ref() {
+                                        "1D" => output::FecMode::OneD,
+                                        "2D" => output::FecMode::TwoD,
+                                        // clap ensures only 1D or 2D are possible values
+                                        _ => panic!("Invalid FEC mode. This is bug"),
+                                    },
+                                    rows: *rows,
+                                    cols: *cols,
+                                },
+                                _ =>  {
+                                    eprintln!("The --fec argument requires the --fec-rows and --fec-cols arguments");
+                                    process::exit(1);
+                                }
+                            }
+                        });
+
+                        output::NewOutputMode::Rtp(output::NewRtpOutputMode {
+                            address: address.to_owned(),
+                            port,
+                            fec,
+                        })
+                    }
+                    "udp" => {
+                        let dest = match dest {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for UDP outputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+                        output::NewOutputMode::Udp(output::NewUdpOutputMode {
+                            address: address.to_owned(),
+                            port,
+                        })
+                    }
+                    e => {
+                        eprintln!("Invalid mode: {}", e);
+                        process::exit(1);
+                    }
+                };
+
+                output::create(
+                    client,
+                    output::NewOutput {
+                        name: name.to_owned(),
+                        appliance: appliance.to_owned(),
+                        interface: interface.to_owned(),
+                        input: input.to_owned(),
+                        mode,
+                    },
+                )
+            }
             Some(("delete", args)) => {
                 let client = new_client();
                 let name = args

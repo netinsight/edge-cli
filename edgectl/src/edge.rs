@@ -176,6 +176,24 @@ pub struct Output {
     pub ports: Vec<OutputPort>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewOutput {
+    pub name: String,
+    pub admin_status: OutputAdminStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delay: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delay_mode: Option<OutputDelayMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    pub input: String,
+    pub ports: Vec<OutputPort>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redundancy_mode: Option<OutputRedundancyMode>,
+    pub tags: Vec<String>,
+}
+
 #[derive(Debug)]
 pub enum OutputAdminStatus {
     Off = 0,
@@ -191,7 +209,19 @@ impl fmt::Display for OutputAdminStatus {
     }
 }
 
-#[derive(Debug)]
+impl Serialize for OutputAdminStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Off => serializer.serialize_u8(0),
+            Self::On => serializer.serialize_u8(1),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub enum OutputRedundancyMode {
     None = 0,
     Failover = 1,
@@ -226,7 +256,7 @@ impl<'de> Deserialize<'de> for OutputRedundancyMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum OutputDelayMode {
     BasedOnArrivalTime = 1,
     BasedOnOriginTime = 2,
@@ -305,7 +335,7 @@ pub enum OutputHealthState {
     Alarm,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "mode")]
 pub enum OutputPort {
@@ -323,14 +353,14 @@ pub enum OutputPort {
     ComprimatoNdi(ComprimatoNdiOutputPort),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UdpOutputPort {
     pub address: String,
     pub port: u16,
     pub physical_port: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RtpOutputPort {
     pub address: String,
@@ -351,14 +381,14 @@ pub enum OutputPortFec {
     #[serde(rename = "2D")]
     Fec2D,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RistOutputPort {
     pub profile: String,
     pub address: String,
     pub port: u16,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "srtMode")]
 pub enum SrtOutputPort {
@@ -366,74 +396,74 @@ pub enum SrtOutputPort {
     Caller(SrtCallerOutputPort),
     Rendezvous(SrtRendezvousOutputPort),
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtListenerOutputPort {
     pub local_ip: String,
     pub local_port: u16,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtCallerOutputPort {
     pub remote_ip: String,
     pub remote_port: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtRendezvousOutputPort {
     pub local_ip: String,
     pub remote_ip: String,
     pub remote_port: u16, // Both local and remote port
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RtmpOutputPort {
     pub rtmp_destination_address: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "zixiMode")]
 pub enum ZixiOutputPort {
     Pull(ZixiPullOutputPort),
     Push(ZixiPushOutputPort),
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiPullOutputPort {
     pub stream_id: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiPushOutputPort {
     pub stream_id: String,
     pub link_set_1: Vec<ZixiLink>, // ZixiLinkSet: length 1, 2 or 3
     pub link_set_2: Option<Vec<ZixiLink>>, // ZixiLinkSet: length 1, 2 or 3
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiLink {
     // pub local_ip: String,
     pub remote_ip: String,
     pub remote_port: u16,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UnixOutputPort {}
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SdiOutputPort {
     pub physical_port: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AsiOutputPort {}
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatroxSdiOutputPort {}
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComprimatoSdiOutputPort {}
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComprimatoNdiOutputPort {}
 
@@ -959,6 +989,16 @@ impl EdgeClient {
             .send()?;
 
         Ok(res.json::<OutputListResp>()?.items)
+    }
+
+    pub fn create_output(&self, output: NewOutput) -> Result<(), EdgeError> {
+        self.client
+            .post(format!("{}/api/output/", self.url))
+            .header("content-type", "application/json")
+            .json(&output)
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
     }
 
     pub fn delete_output(&self, id: &str) -> Result<(), EdgeError> {

@@ -6,7 +6,7 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
     EdgeClient, Output, OutputAdminStatus, OutputHealthState, OutputPort, OutputPortFec,
-    SrtOutputPort, ZixiOutputPort,
+    RtpOutputPort, SrtOutputPort, UdpOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -248,6 +248,146 @@ pub fn show(client: EdgeClient, name: &str) {
         if many_outputs {
             println!();
         }
+    }
+}
+
+pub enum NewOutputMode {
+    Udp(NewUdpOutputMode),
+    Rtp(NewRtpOutputMode),
+}
+
+pub struct NewUdpOutputMode {
+    pub address: String,
+    pub port: u16,
+}
+
+pub struct NewRtpOutputMode {
+    pub address: String,
+    pub port: u16,
+    pub fec: Option<Fec>,
+}
+
+#[derive(Clone)]
+pub struct Fec {
+    pub mode: FecMode,
+    pub rows: u8,
+    pub cols: u8,
+}
+
+#[derive(Clone)]
+pub enum FecMode {
+    OneD, // 1D
+    TwoD, // 2D
+}
+
+pub struct NewOutput {
+    pub name: String,
+    pub appliance: String,
+    pub interface: String,
+    pub input: String,
+    pub mode: NewOutputMode,
+}
+
+pub fn create(client: EdgeClient, new_output: NewOutput) {
+    let appl = match client.find_appliances(&new_output.appliance) {
+        Ok(appls) if appls.is_empty() => {
+            println!("Could not find appliance {}", new_output.appliance);
+            process::exit(1);
+        }
+        Ok(appls) if appls.len() > 1 => {
+            println!(
+                "Found more than one appliance matching {}: {}",
+                new_output.appliance,
+                appls
+                    .into_iter()
+                    .map(|a| a.name)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            process::exit(1);
+        }
+        Ok(mut appls) => appls.pop().unwrap(),
+        Err(e) => {
+            println!("Failed to find appliance {}: {}", new_output.appliance, e);
+            process::exit(1);
+        }
+    };
+
+    let interface = match appl
+        .physical_ports
+        .iter()
+        .find(|p| p.name == new_output.interface)
+    {
+        Some(interface) => interface,
+        None => {
+            println!(
+                "Failed to find interface {} on appliance {}",
+                new_output.interface, appl.name
+            );
+            process::exit(1);
+        }
+    };
+
+    let input = match client.find_inputs(&new_output.input) {
+        Ok(inputs) if inputs.is_empty() => {
+            println!("Could not find input {}", new_output.input);
+            process::exit(1);
+        }
+        Ok(inputs) if inputs.len() > 1 => {
+            println!(
+                "Found more than one input matching {}: {}",
+                new_output.input,
+                inputs
+                    .into_iter()
+                    .map(|a| a.name)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            process::exit(1);
+        }
+        Ok(mut inputs) => inputs.pop().unwrap(),
+        Err(e) => {
+            println!("Failed to find inputs {}: {}", new_output.input, e);
+            process::exit(1);
+        }
+    };
+
+    let ports = match new_output.mode {
+        NewOutputMode::Udp(udp) => vec![OutputPort::Udp(UdpOutputPort {
+            address: udp.address,
+            port: udp.port,
+            physical_port: interface.id.to_owned(),
+        })],
+        NewOutputMode::Rtp(rtp) => {
+            let fec = rtp.fec.as_ref().map(|fec| match fec.mode {
+                FecMode::OneD => OutputPortFec::Fec1D,
+                FecMode::TwoD => OutputPortFec::Fec2D,
+            });
+
+            vec![OutputPort::Rtp(RtpOutputPort {
+                address: rtp.address,
+                port: rtp.port,
+                physical_port: interface.id.to_owned(),
+                fec,
+                fec_rows: rtp.fec.as_ref().map(|fec| fec.rows),
+                fec_cols: rtp.fec.as_ref().map(|fec| fec.cols),
+            })]
+        }
+    };
+
+    if let Err(e) = client.create_output(crate::edge::NewOutput {
+        name: new_output.name,
+        admin_status: OutputAdminStatus::On,
+        delay: None,
+        delay_mode: None,
+        group: None,
+        input: input.id,
+        redundancy_mode: None,
+        tags: Vec::new(),
+        ports,
+    }) {
+        eprintln!("Failed to create output: {}", e);
+        process::exit(1);
     }
 }
 
