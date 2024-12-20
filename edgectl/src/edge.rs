@@ -328,12 +328,14 @@ pub enum OutputPort {
 pub struct UdpOutputPort {
     pub address: String,
     pub port: u16,
+    pub physical_port: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RtpOutputPort {
     pub address: String,
     pub port: u16,
+    pub physical_port: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fec: Option<OutputPortFec>,
     #[serde(skip_serializing_if = "Option::is_none")]

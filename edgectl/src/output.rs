@@ -178,7 +178,12 @@ pub fn show(client: EdgeClient, name: &str) {
                 }
                 OutputPort::Udp(port) => {
                     let addr = format!("{}:{}", port.address, port.port);
+                    let iface = client
+                        .get_port(&port.physical_port)
+                        .map(|iface| iface.name)
+                        .unwrap_or(port.physical_port); // fall back to ID if on failure
                     println!("  - Mode:             UDP");
+                    println!("    Interface:        {}", iface);
                     println!("    Dest:             {}", addr);
                 }
                 OutputPort::Rtp(port) => {
@@ -199,7 +204,12 @@ pub fn show(client: EdgeClient, name: &str) {
                         ),
                         None => "no".to_owned(),
                     };
+                    let iface = client
+                        .get_port(&port.physical_port)
+                        .map(|iface| iface.name)
+                        .unwrap_or(port.physical_port); // fall back to ID if on failure
                     println!("  - Mode:             RTP");
+                    println!("    Interface:        {}", iface);
                     println!("    Dest:             {}", addr);
                     println!("    FEC:              {}", fec);
                 }
