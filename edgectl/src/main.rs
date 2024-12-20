@@ -249,6 +249,13 @@ fn main() {
                             .help("The name of the appliance"),
                     ),
                 )
+                .subcommand(
+                    Command::new("restart").arg(
+                        Arg::new("name")
+                            .required(true)
+                            .help("The name of the appliance"),
+                    ),
+                )
         )
         .subcommand(
             Command::new("group")
@@ -600,6 +607,14 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Appliance name is mandatory");
                 appliance::config(client, name)
+            }
+            Some(("restart", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Appliance name is mandatory");
+                appliance::restart(client, name)
             }
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },

@@ -1223,4 +1223,12 @@ impl EdgeClient {
 
         Ok(res.json()?)
     }
+
+    pub fn restart_appliance(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .post(format!("{}/api/appliance/{}/restart", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
 }

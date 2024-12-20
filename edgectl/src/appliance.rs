@@ -207,6 +207,16 @@ pub fn config(client: EdgeClient, name: &str) {
     println!("{}", serde_json::to_string_pretty(&config).unwrap());
 }
 
+pub fn restart(client: EdgeClient, name: &str) {
+    let appliance = get_appliance(&client, name);
+    eprintln!("Restarting appliance {}", appliance.name);
+    if let Err(e) = client.restart_appliance(&appliance.id) {
+        eprintln!("Failed to restart appliance: {}", e);
+        process::exit(1);
+    }
+    eprintln!("Appliance {} restarted", appliance.name)
+}
+
 fn get_appliance(client: &EdgeClient, name: &str) -> Appliance {
     let mut appliances = match client.find_appliances(name) {
         Ok(appls) => appls,
