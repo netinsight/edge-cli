@@ -95,6 +95,10 @@ case "$*" in
         shift 2
         exec "$script_dir/node-list.sh" "$@"
         ;;
+    "tunnel list"*)
+        shift 2
+        exec "$script_dir/tunnel-list.sh" "$@"
+        ;;
     *)
         echo >&2 "Unknown subcommand: $1 $2"
         exit 1
