@@ -11,6 +11,6 @@ appliances="$(curl "$edge_url/api/appliance/" \
     --cookie "$cookie_jar")"
 
 (
-    printf "Name\tid\ttype\tstate\n" &&
-    jq --raw-output '.items | map([.name, .id, .type, .health.state])[] | @tsv' <<<"$appliances"
+    printf "Name\tid\ttype\tctrlSWver\tdataSWver\thealth\n" &&
+    jq --raw-output '.items | map([.name, .id, .type, .version.controlSoftwareVersion, .version.dataSoftwareVersion, .health.state])[] | @tsv' <<<"$appliances"
 ) | column -t
