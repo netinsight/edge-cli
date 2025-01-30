@@ -1191,6 +1191,21 @@ impl EdgeClient {
         res.json::<Group>()
     }
 
+    pub fn get_group_core_secret(&self, id: &str) -> Result<String, reqwest::Error> {
+        let res = self
+            .client
+            .get(format!(r#"{}/api/group/{}/core-secret"#, self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        #[derive(Deserialize)]
+        struct SecretResp {
+            secret: String,
+        }
+
+        Ok(res.json::<SecretResp>()?.secret)
+    }
+
     pub fn create_group(&self, group: NewGroup) -> Result<Group, EdgeError> {
         let res = self
             .client

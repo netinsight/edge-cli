@@ -278,6 +278,10 @@ fn main() {
                 .subcommand(
                     Command::new("delete")
                         .arg(Arg::new("name").required(true).help("The group name")),
+                )
+                .subcommand(
+                    Command::new("core-secret")
+                        .arg(Arg::new("name").required(true).help("The group name")),
                 ),
         )
         .subcommand(
@@ -645,6 +649,14 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("Group name is mandatory");
                 group::show(client, name)
+            }
+            Some(("core-secret", args)) => {
+                let client = new_client();
+                let name = args
+                    .get_one::<String>("name")
+                    .map(|s| s.as_str())
+                    .expect("Group name is mandatory");
+                group::core_secret(client, name)
             }
             Some(("create", args)) => {
                 let client = new_client();

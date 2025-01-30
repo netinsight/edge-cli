@@ -35,6 +35,27 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
+pub(crate) fn core_secret(client: EdgeClient, name: &str) {
+    let groups = match client.find_groups(name) {
+        Ok(groups) => groups,
+        Err(e) => {
+            println!("Failed to list groups: {}", e);
+            process::exit(1);
+        }
+    };
+    let groups: Vec<&Group> = groups.iter().filter(|g| g.name == name).collect();
+    if groups.is_empty() {
+        println!("Group not found: {}", name);
+        process::exit(1);
+    }
+    for group in groups {
+        let secret = client
+            .get_group_core_secret(&group.id)
+            .expect("Failed to get group secret");
+        println!("{}", secret)
+    }
+}
+
 pub fn create(client: EdgeClient, name: &str) {
     match client.create_group(NewGroup {
         name: name.to_owned(),
