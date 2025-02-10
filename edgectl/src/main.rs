@@ -241,7 +241,8 @@ fn main() {
                     Command::new("delete").arg(
                         Arg::new("name")
                             .required(true)
-                            .help("The name of the appliances to delete"),
+                            .help("The name of the appliances to delete")
+                            .num_args(1..),
                     ),
                 )
                 .subcommand(
@@ -597,11 +598,19 @@ fn main() {
             }
             Some(("delete", args)) => {
                 let client = new_client();
-                let name = args
-                    .get_one::<String>("name")
-                    .map(|s| s.as_str())
-                    .expect("Appliance name is mandatory");
-                appliance::delete(client, name)
+                let mut failed = false;
+                for name in args
+                    .get_many::<String>("name")
+                    .expect("Appliance name is mandatory")
+                {
+                    if let Err(e) = appliance::delete(&client, name) {
+                        eprintln!("Failed to delete appliance {}: {}", name, e);
+                        failed = true;
+                    }
+                }
+                if failed {
+                    process::exit(1);
+                }
             }
             Some(("inputs", args)) => {
                 let client = new_client();

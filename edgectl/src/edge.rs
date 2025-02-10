@@ -812,6 +812,8 @@ pub enum EdgeError {
     ClientError(reqwest::StatusCode, EdgeApiError),
 }
 
+impl std::error::Error for EdgeError {}
+
 #[derive(Debug)]
 pub enum EdgeApiError {
     ApiError(EdgeErrorResp),

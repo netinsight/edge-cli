@@ -13,3 +13,4 @@ serde_json = "1.0.111"
 tabled = "0.15.0"
 uuid = { version = "1.11.0", features = [ "v4" ] }
 openssl = { version = "0.10.68", features = ["vendored"] } # vendor openssl to enable static builds
+anyhow = "1.0.95"

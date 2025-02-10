@@ -1,5 +1,6 @@
 use std::{fmt, process};
 
+use anyhow::{anyhow, Context};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{Appliance, ApplianceHealthState, AppliancePortType, EdgeClient};
@@ -118,25 +119,23 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn delete(client: EdgeClient, name: &str) {
-    let appliances = match client.find_appliances(name) {
-        Ok(appls) => appls,
-        Err(e) => {
-            println!("Failed to list appliances for deletion: {}", e);
-            process::exit(1)
-        }
-    };
+pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+    let appliances = client
+        .find_appliances(name)
+        .context("Failed to list appliances for deletion")?;
+
     if appliances.is_empty() {
-        eprintln!("Appliance not found: {}", name);
-        process::exit(1);
+        return Err(anyhow!("Appliance not found"));
     }
+
     for appliance in appliances {
-        if let Err(e) = client.delete_appliance(&appliance.id) {
-            println!("Failed to delete appliance {}: {}", appliance.name, e);
-            process::exit(1);
-        }
+        client
+            .delete_appliance(&appliance.id)
+            .context("Failed to delete appliance")?;
         println!("Deleted appliance {}", appliance.name);
     }
+
+    Ok(())
 }
 
 pub fn inputs(client: EdgeClient, name: &str) {
