@@ -5,9 +5,9 @@ use std::process;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    EdgeClient, GeneratorBitrate, GeneratorBitrateCBR, GeneratorInputPort, InputAdminStatus,
-    NewInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort,
-    ThumbnailMode, UdpInputPort,
+    AppliancePhysicalPort, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR, GeneratorInputPort,
+    InputAdminStatus, NewInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings,
+    SdiInputPort, ThumbnailMode, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -152,8 +152,6 @@ pub fn show(client: EdgeClient, name: &str) {
 
 pub struct NewInput {
     pub name: String,
-    pub appliance: String,
-    pub interface: String,
     pub thumbnails: bool,
     pub mode: NewInputMode,
 }
@@ -166,17 +164,25 @@ pub enum NewInputMode {
 }
 
 pub struct NewRtpInputMode {
+    pub appliance: String,
+    pub interface: String,
     pub port: u16,
     pub fec: bool,
     pub multicast_address: Option<String>,
 }
 pub struct NewUdpInputMode {
+    pub appliance: String,
+    pub interface: String,
     pub port: u16,
     pub multicast_address: Option<String>,
 }
-pub struct NewSdiInputMode {}
+pub struct NewSdiInputMode {
+    pub appliance: String,
+    pub interface: String,
+}
 
 pub struct NewGeneratorInputMode {
+    pub appliance: String,
     pub bitrate: Bitrate,
 }
 
@@ -187,94 +193,67 @@ pub enum Bitrate {
 }
 
 pub fn create(client: EdgeClient, new_input: NewInput) {
-    let appl = match client.find_appliances(&new_input.appliance) {
-        Ok(appls) if appls.is_empty() => {
-            println!("Could not find appliance {}", new_input.appliance);
-            process::exit(1);
-        }
-        Ok(appls) if appls.len() > 1 => {
-            println!(
-                "Found more than one appliance matching {}: {}",
-                new_input.appliance,
-                appls
-                    .into_iter()
-                    .map(|a| a.name)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-            process::exit(1);
-        }
-        Ok(mut appls) => appls.pop().unwrap(),
-        Err(e) => {
-            println!("Failed to find appliance {}: {}", new_input.appliance, e);
-            process::exit(1);
-        }
-    };
-
-    let interface = match appl
-        .physical_ports
-        .iter()
-        .find(|p| p.name == new_input.interface)
-    {
-        Some(interface) => interface,
-        None => {
-            println!(
-                "Failed to find interface {} on appliance {}",
-                new_input.interface, appl.name
-            );
-            process::exit(1);
-        }
-    };
-
     let ports = match new_input.mode {
-        NewInputMode::Rtp(rtp) => vec![NewInputPort::Rtp(RtpInputPort {
-            copies: 1,
-            physical_port: interface.id.to_owned(),
-            address: interface
-                .addresses
-                .first()
-                .expect("Expected at least one address on the appliance physical port")
-                .address
-                .to_owned(),
-            port: rtp.port,
-            fec: rtp.fec,
-            multicast_address: rtp.multicast_address,
-        })],
-        NewInputMode::Udp(udp) => vec![NewInputPort::Udp(UdpInputPort {
-            copies: 1,
-            physical_port: interface.id.to_owned(),
-            address: interface
-                .addresses
-                .first()
-                .expect("Expected at least one address on the appliance physical port")
-                .address
-                .to_owned(),
-            port: udp.port,
-            multicast_address: udp.multicast_address,
-        })],
-        NewInputMode::Sdi(_) => vec![NewInputPort::Sdi(SdiInputPort {
-            copies: 1,
-            physical_port: interface.id.to_owned(),
-            encoder_settings: SdiEncoderSettings {
-                video_codec: "h.264".to_owned(),
-                total_bitrate: 15000000,
-                gop_size_frames: 150,
-                audio_streams: vec![SdiEncoderAudioStream {
-                    codec: "aes3".to_owned(),
-                    pair: 1,
-                    bitrate: 1920,
-                    kind: "stereo".to_owned(),
-                }],
-            },
-        })],
-        NewInputMode::Generator(generator) => vec![NewInputPort::Generator(GeneratorInputPort {
-            copies: 1,
-            physical_port: interface.id.to_owned(),
-            bitrate: match generator.bitrate {
-                Bitrate::Vbr => GeneratorBitrate::Vbr,
-                Bitrate::Cbr(bitrate) => GeneratorBitrate::Cbr(GeneratorBitrateCBR { bitrate }),
-            },
-        })],
+        NewInputMode::Rtp(rtp) => {
+            let interface = get_physical_port(&client, &rtp.appliance, &rtp.interface);
+            vec![NewInputPort::Rtp(RtpInputPort {
+                copies: 1,
+                physical_port: interface.id.to_owned(),
+                address: interface
+                    .addresses
+                    .first()
+                    .expect("Expected at least one address on the appliance physical port")
+                    .address
+                    .to_owned(),
+                port: rtp.port,
+                fec: rtp.fec,
+                multicast_address: rtp.multicast_address,
+            })]
+        }
+        NewInputMode::Udp(udp) => {
+            let interface = get_physical_port(&client, &udp.appliance, &udp.interface);
+            vec![NewInputPort::Udp(UdpInputPort {
+                copies: 1,
+                physical_port: interface.id.to_owned(),
+                address: interface
+                    .addresses
+                    .first()
+                    .expect("Expected at least one address on the appliance physical port")
+                    .address
+                    .to_owned(),
+                port: udp.port,
+                multicast_address: udp.multicast_address,
+            })]
+        }
+        NewInputMode::Sdi(sdi) => {
+            let interface = get_physical_port(&client, &sdi.appliance, &sdi.interface);
+            vec![NewInputPort::Sdi(SdiInputPort {
+                copies: 1,
+                physical_port: interface.id.to_owned(),
+                encoder_settings: SdiEncoderSettings {
+                    video_codec: "h.264".to_owned(),
+                    total_bitrate: 15000000,
+                    gop_size_frames: 150,
+                    audio_streams: vec![SdiEncoderAudioStream {
+                        codec: "aes3".to_owned(),
+                        pair: 1,
+                        bitrate: 1920,
+                        kind: "stereo".to_owned(),
+                    }],
+                },
+            })]
+        }
+        NewInputMode::Generator(generator) => {
+            let interface = get_physical_port(&client, &generator.appliance, "lo");
+            vec![NewInputPort::Generator(GeneratorInputPort {
+                copies: 1,
+                physical_port: interface.id.to_owned(),
+                bitrate: match generator.bitrate {
+                    Bitrate::Vbr => GeneratorBitrate::Vbr,
+                    Bitrate::Cbr(bitrate) => GeneratorBitrate::Cbr(GeneratorBitrateCBR { bitrate }),
+                },
+            })]
+        }
     };
 
     if let Err(e) = client.create_input(crate::edge::NewInput {
@@ -298,6 +277,50 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
     }) {
         eprintln!("Failed to create input: {}", e);
         process::exit(1);
+    }
+}
+
+fn get_physical_port(
+    client: &EdgeClient,
+    appliance: &str,
+    interface: &str,
+) -> AppliancePhysicalPort {
+    let appl = match client.find_appliances(appliance) {
+        Ok(appls) if appls.is_empty() => {
+            println!("Could not find appliance {}", appliance);
+            process::exit(1);
+        }
+        Ok(appls) if appls.len() > 1 => {
+            println!(
+                "Found more than one appliance matching {}: {}",
+                appliance,
+                appls
+                    .into_iter()
+                    .map(|a| a.name)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            process::exit(1);
+        }
+        Ok(mut appls) => appls.pop().unwrap(),
+        Err(e) => {
+            println!("Failed to find appliance {}: {}", appliance, e);
+            process::exit(1);
+        }
+    };
+    match appl
+        .physical_ports
+        .into_iter()
+        .find(|p| p.name == interface)
+    {
+        Some(interface) => interface,
+        None => {
+            println!(
+                "Failed to find interface {} on appliance {}",
+                interface, appl.name
+            );
+            process::exit(1);
+        }
     }
 }
 

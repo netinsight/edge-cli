@@ -330,12 +330,7 @@ fn main() {
                     .get_one::<String>("name")
                     .map(|s| s.as_str())
                     .expect("name is required");
-                let appliance = args
-                    .get_one::<String>("appliance")
-                    .map(|s| s.as_str())
-                    .expect("appliance is required");
                 let port = args.get_one::<u16>("port");
-                let interface = args.get_one::<String>("interface").map(|s| s.as_str());
                 let mode = args
                     .get_one::<String>("mode")
                     .map(|s| s.as_str())
@@ -364,18 +359,6 @@ fn main() {
                     process::exit(1);
                 }
 
-                let interface = {
-                    if mode == "generator" {
-                        if interface.is_some() {
-                            eprintln!("Cannot specify interface for generator input");
-                            process::exit(1)
-                        }
-                        "lo"
-                    } else {
-                        interface.expect("interface is required")
-                    }
-                };
-
                 let mode = match mode {
                     "rtp" => {
                         let port = match port {
@@ -386,6 +369,14 @@ fn main() {
                             }
                         };
                         input::NewInputMode::Rtp(input::NewRtpInputMode {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
                             port: *port,
                             fec: args.get_flag("fec"),
                             multicast_address: multicast.map(|s| s.to_owned()),
@@ -400,14 +391,42 @@ fn main() {
                             }
                         };
                         input::NewInputMode::Udp(input::NewUdpInputMode {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
                             port: *port,
                             multicast_address: multicast.map(|s| s.to_owned()),
                         })
                     }
-                    "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {}),
-                    "generator" => input::NewInputMode::Generator(input::NewGeneratorInputMode {
-                        bitrate: bitrate.unwrap_or(&input::Bitrate::Vbr).clone(),
+                    "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {
+                        appliance: args
+                            .get_one::<String>("appliance")
+                            .cloned()
+                            .expect("appliance is required"),
+                        interface: args
+                            .get_one::<String>("interface")
+                            .cloned()
+                            .expect("interface is required"),
                     }),
+                    "generator" => {
+                        if args.contains_id("interface") {
+                            eprintln!("Cannot specify interface for generator input");
+                            process::exit(1)
+                        }
+
+                        input::NewInputMode::Generator(input::NewGeneratorInputMode {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            bitrate: bitrate.unwrap_or(&input::Bitrate::Vbr).clone(),
+                        })
+                    }
                     e => {
                         eprintln!("Invalid mode: {}", e);
                         process::exit(1);
@@ -418,8 +437,6 @@ fn main() {
                     client,
                     input::NewInput {
                         name: name.to_owned(),
-                        appliance: appliance.to_owned(),
-                        interface: interface.to_owned(),
                         thumbnails: !disable_thumbnails,
                         mode,
                     },
