@@ -6,9 +6,9 @@ use anyhow::{anyhow, Context};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    AppliancePhysicalPort, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR, GeneratorInputPort,
-    InputAdminStatus, NewInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings,
-    SdiInputPort, ThumbnailMode, UdpInputPort,
+    AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR,
+    GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RtpInputPort,
+    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, ThumbnailMode, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -162,6 +162,7 @@ pub enum NewInputMode {
     Udp(NewUdpInputMode),
     Sdi(NewSdiInputMode),
     Generator(NewGeneratorInputMode),
+    Derived(NewDerivedInputMode),
 }
 
 pub struct NewRtpInputMode {
@@ -187,6 +188,18 @@ pub struct NewGeneratorInputMode {
     pub bitrate: Bitrate,
 }
 
+pub struct NewDerivedInputMode {
+    pub parent: String,
+    pub pid_rules: Vec<PIDRule>,
+}
+
+#[derive(Debug)]
+pub enum PIDRule {
+    Map(u16, u16),
+    Delete(u16),
+    SetNull(u16),
+}
+
 #[derive(Clone)]
 pub enum Bitrate {
     Vbr,
@@ -195,7 +208,7 @@ pub enum Bitrate {
 
 pub fn create(client: EdgeClient, new_input: NewInput) {
     let ports = match new_input.mode {
-        NewInputMode::Rtp(rtp) => {
+        NewInputMode::Rtp(ref rtp) => {
             let interface = get_physical_port(&client, &rtp.appliance, &rtp.interface);
             vec![NewInputPort::Rtp(RtpInputPort {
                 copies: 1,
@@ -208,10 +221,10 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                     .to_owned(),
                 port: rtp.port,
                 fec: rtp.fec,
-                multicast_address: rtp.multicast_address,
+                multicast_address: rtp.multicast_address.clone(),
             })]
         }
-        NewInputMode::Udp(udp) => {
+        NewInputMode::Udp(ref udp) => {
             let interface = get_physical_port(&client, &udp.appliance, &udp.interface);
             vec![NewInputPort::Udp(UdpInputPort {
                 copies: 1,
@@ -223,10 +236,10 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                     .address
                     .to_owned(),
                 port: udp.port,
-                multicast_address: udp.multicast_address,
+                multicast_address: udp.multicast_address.clone(),
             })]
         }
-        NewInputMode::Sdi(sdi) => {
+        NewInputMode::Sdi(ref sdi) => {
             let interface = get_physical_port(&client, &sdi.appliance, &sdi.interface);
             vec![NewInputPort::Sdi(SdiInputPort {
                 copies: 1,
@@ -244,7 +257,7 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                 },
             })]
         }
-        NewInputMode::Generator(generator) => {
+        NewInputMode::Generator(ref generator) => {
             let interface = get_physical_port(&client, &generator.appliance, "lo");
             vec![NewInputPort::Generator(GeneratorInputPort {
                 copies: 1,
@@ -255,6 +268,39 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                 },
             })]
         }
+        NewInputMode::Derived(_) => Vec::new(),
+    };
+
+    let derive_from = if let NewInputMode::Derived(derived) = new_input.mode {
+        let parent = client
+            .find_inputs(&derived.parent)
+            .expect("Failed to list inputs")
+            .into_iter()
+            .find(|i| i.name == derived.parent)
+            .expect("Could not find parent input");
+        Some(DerivableInputSource {
+            parent_input: parent.id,
+            delay: 1000,
+            ingest_transform: Some(IngestTransform::MptsDemuxTransform {
+                services: vec![1], // TODO
+                pid_map: Some(PidMap {
+                    rules: derived
+                        .pid_rules
+                        .iter()
+                        .map(|r| match r {
+                            PIDRule::Map(from, to) => crate::edge::PIDRule::Map {
+                                pid: *from,
+                                dest_pid: *to,
+                            },
+                            PIDRule::Delete(pid) => crate::edge::PIDRule::Delete { pid: *pid },
+                            PIDRule::SetNull(pid) => crate::edge::PIDRule::SetNull { pid: *pid },
+                        })
+                        .collect(),
+                }),
+            }),
+        })
+    } else {
+        None
     };
 
     if let Err(e) = client.create_input(crate::edge::NewInput {
@@ -275,6 +321,7 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
         ports,
         buffer_size: 6_000,
         max_bitrate: None,
+        derive_from,
     }) {
         eprintln!("Failed to create input: {}", e);
         process::exit(1);

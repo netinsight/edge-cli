@@ -8,7 +8,7 @@ mod region;
 
 use std::{env, process};
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 use edge::EdgeClient;
 
@@ -48,7 +48,7 @@ fn main() {
                             Arg::new("appliance")
                                 .short('a')
                                 .long("appliance")
-                                .required(true)
+                                .required(false)
                                 .help("The appliance to create the input on"),
                         )
                         .arg(
@@ -61,6 +61,7 @@ fn main() {
                                     "udp",
                                     "sdi",
                                     "generator",
+                                    "derived",
                                 ]))
                                 .help("The input mode"),
                         )
@@ -109,6 +110,30 @@ fn main() {
                                     }
                                 })
                                 .help("Set bitrate for generator"),
+                        )
+                        .arg(Arg::new("parent")
+                            .long("parent")
+                            .num_args(1)
+                            .help("The parent input for derived inputs. Requires --mode derived")
+                        ).arg(
+                            Arg::new("map")
+                                .long("map")
+                                .num_args(2)
+                                .action(ArgAction::Append)
+                                .value_parser(clap::value_parser!(u16).range(1..))
+                                .help("Map PIDs in the stream (derived streams only)")
+                        ).arg(
+                            Arg::new("set-null")
+                                .long("set-null")
+                                .action(ArgAction::Append)
+                                .value_parser(clap::value_parser!(u16).range(1..))
+                                .help("Replace PID with null packets (derived streams only)")
+                        ).arg(
+                            Arg::new("delete")
+                                .long("delete")
+                                .action(ArgAction::Append)
+                                .value_parser(clap::value_parser!(u16).range(1..))
+                                .help("Delete PID from stream (derived streams only)")
                         ),
                 )
                 .subcommand(
@@ -427,6 +452,35 @@ fn main() {
                                 .cloned()
                                 .expect("appliance is required"),
                             bitrate: bitrate.unwrap_or(&input::Bitrate::Vbr).clone(),
+                        })
+                    }
+                    "derived" => {
+                        let mut rules: Vec<input::PIDRule> = Vec::new();
+                        let maps = args
+                            .get_occurrences::<u16>("map")
+                            .unwrap_or_default()
+                            .map(Iterator::collect)
+                            .map(|m: Vec<&u16>| input::PIDRule::Map(*m[0], *m[1]));
+                        let deletes = args
+                            .get_many::<u16>("delete")
+                            .unwrap_or_default()
+                            .map(|d| input::PIDRule::Delete(*d));
+
+                        let nulls = args
+                            .get_many::<u16>("set-null")
+                            .unwrap_or_default()
+                            .map(|d| input::PIDRule::SetNull(*d));
+
+                        rules.extend(maps);
+                        rules.extend(deletes);
+                        rules.extend(nulls);
+
+                        input::NewInputMode::Derived(input::NewDerivedInputMode {
+                            parent: args
+                                .get_one::<String>("parent")
+                                .expect("parent is required for derived inputs")
+                                .to_owned(),
+                            pid_rules: rules,
                         })
                     }
                     e => {

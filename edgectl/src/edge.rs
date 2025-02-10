@@ -133,6 +133,8 @@ pub struct NewInput {
     pub ports: Vec<NewInputPort>,
     pub buffer_size: u16,
     pub max_bitrate: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derive_from: Option<DerivableInputSource>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -152,6 +154,44 @@ pub struct InputHealth {
 #[serde(rename_all = "camelCase")]
 pub struct InputAppliance {
     pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DerivableInputSource {
+    pub parent_input: String,
+    pub delay: u32,
+    pub ingest_transform: Option<IngestTransform>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
+pub enum IngestTransform {
+    #[serde(rename_all = "camelCase")]
+    #[serde(rename = "mpts-demux")]
+    MptsDemuxTransform {
+        services: Vec<u16>,
+        pid_map: Option<PidMap>,
+    },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PidMap {
+    pub rules: Vec<PIDRule>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "action")]
+pub enum PIDRule {
+    #[serde(rename_all = "camelCase")]
+    Map { pid: u16, dest_pid: u16 },
+    #[serde(rename_all = "camelCase")]
+    Delete { pid: u16 },
+    #[serde(rename_all = "camelCase")]
+    SetNull { pid: u16 },
 }
 
 #[derive(Debug, Deserialize)]
