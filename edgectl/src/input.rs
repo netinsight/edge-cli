@@ -8,7 +8,7 @@ use tabled::{builder::Builder, settings::Style};
 use crate::edge::{
     AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR,
     GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RtpInputPort,
-    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, ThumbnailMode, UdpInputPort,
+    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -153,8 +153,14 @@ pub fn show(client: EdgeClient, name: &str) {
 
 pub struct NewInput {
     pub name: String,
-    pub thumbnails: bool,
+    pub thumbnails: ThumbnailMode,
     pub mode: NewInputMode,
+}
+
+pub enum ThumbnailMode {
+    Core,
+    Edge,
+    None,
 }
 
 pub enum NewInputMode {
@@ -307,12 +313,12 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
         name: new_input.name,
         tr101290_enabled: true,
         broadcast_standard: "dvb".to_owned(),
-        thumbnail_mode: if new_input.thumbnails {
-            ThumbnailMode::Core
-        } else {
-            ThumbnailMode::None
+        thumbnail_mode: match new_input.thumbnails {
+            ThumbnailMode::Core => crate::edge::ThumbnailMode::Core,
+            ThumbnailMode::Edge => crate::edge::ThumbnailMode::Edge,
+            ThumbnailMode::None => crate::edge::ThumbnailMode::None,
         },
-        video_preview_mode: if new_input.thumbnails {
+        video_preview_mode: if let ThumbnailMode::Core = new_input.thumbnails {
             "on demand".to_owned()
         } else {
             "off".to_owned()

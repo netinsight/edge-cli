@@ -73,10 +73,15 @@ fn main() {
                                 .help("The interface on the appliance to create the input on"),
                         )
                         .arg(
-                            Arg::new("disable-thumbnails")
-                                .long("disable-thumbnails")
-                                .num_args(0)
-                                .help("Disable thumbnailing"),
+                            Arg::new("thumbnail")
+                                .long("thumbnail")
+                                .value_parser(clap::builder::PossibleValuesParser::new([
+                                    "core",
+                                    "edge",
+                                    "none",
+                                ]))
+                                .default_value("edge")
+                                .help("Set thumbnailing mode"),
                         )
                         .arg(
                             Arg::new("port")
@@ -362,7 +367,6 @@ fn main() {
                     .get_one::<String>("mode")
                     .map(|s| s.as_str())
                     .expect("mode is required");
-                let disable_thumbnails = args.get_flag("disable-thumbnails");
                 let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
                 let bitrate = args.get_one::<input::Bitrate>("bitrate");
 
@@ -489,11 +493,18 @@ fn main() {
                     }
                 };
 
+                let thumbnail_mode = match args.get_one::<String>("thumbnail").map(|s| s.as_str()) {
+                    Some("edge") => input::ThumbnailMode::Edge,
+                    Some("core") => input::ThumbnailMode::Core,
+                    Some("none") => input::ThumbnailMode::None,
+                    _ => input::ThumbnailMode::Edge,
+                };
+
                 input::create(
                     client,
                     input::NewInput {
                         name: name.to_owned(),
-                        thumbnails: !disable_thumbnails,
+                        thumbnails: thumbnail_mode,
                         mode,
                     },
                 )

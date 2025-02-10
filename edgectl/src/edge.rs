@@ -63,12 +63,14 @@ impl Serialize for InputAdminStatus {
 pub enum ThumbnailMode {
     None,
     Core,
+    Edge,
 }
 
 impl fmt::Display for ThumbnailMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ThumbnailMode::None => write!(f, "none"),
+            ThumbnailMode::Edge => write!(f, "edge"),
             ThumbnailMode::Core => write!(f, "core"),
         }
     }
@@ -82,6 +84,7 @@ impl<'de> Deserialize<'de> for ThumbnailMode {
         let value = u8::deserialize(deserializer)?;
         match value {
             0 => Ok(ThumbnailMode::None),
+            1 => Ok(ThumbnailMode::Edge),
             2 => Ok(ThumbnailMode::Core),
             _ => Err(D::Error::unknown_variant(&value.to_string(), &["0", "2"])),
         }
@@ -95,6 +98,7 @@ impl Serialize for ThumbnailMode {
     {
         match self {
             ThumbnailMode::None => serializer.serialize_u8(0),
+            ThumbnailMode::Edge => serializer.serialize_u8(1),
             ThumbnailMode::Core => serializer.serialize_u8(2),
         }
     }
