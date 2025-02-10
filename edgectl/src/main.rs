@@ -115,6 +115,7 @@ fn main() {
                     Command::new("delete").arg(
                         Arg::new("name")
                             .required(true)
+                            .num_args(1..)
                             .help("The name of the inputs to remove"),
                     ),
                 ),
@@ -209,6 +210,7 @@ fn main() {
                     Command::new("delete").arg(
                         Arg::new("name")
                             .required(true)
+                            .num_args(1..)
                             .help("The name of the outputs to remove"),
                     ),
                 ),
@@ -241,8 +243,8 @@ fn main() {
                     Command::new("delete").arg(
                         Arg::new("name")
                             .required(true)
-                            .help("The name of the appliances to delete")
-                            .num_args(1..),
+                            .num_args(1..)
+                            .help("The name of the appliances to delete"),
                     ),
                 )
                 .subcommand(
@@ -444,12 +446,19 @@ fn main() {
             }
             Some(("delete", args)) => {
                 let client = new_client();
-                let name = args
-                    .get_one::<String>("name")
-                    .map(|s| s.as_str())
-                    .expect("name should not be None");
-
-                input::delete(client, name).unwrap();
+                let mut failed = false;
+                for name in args
+                    .get_many::<String>("name")
+                    .expect("Input name is mandatory")
+                {
+                    if let Err(e) = input::delete(&client, name) {
+                        eprintln!("Failed to delete input {}: {}", name, e);
+                        failed = true;
+                    }
+                }
+                if failed {
+                    process::exit(1);
+                }
             }
             Some((cmd, _)) => {
                 eprintln!("Command input {cmd} is not yet implemented");
@@ -584,13 +593,17 @@ fn main() {
             }
             Some(("delete", args)) => {
                 let client = new_client();
-                let name = args
-                    .get_one::<String>("name")
-                    .map(|s| s.as_str())
-                    .expect("output should not be None");
-
-                if let Err(e) = output::delete(client, name) {
-                    eprintln!("Failed to delete output {}: {}", name, e);
+                let mut failed = false;
+                for name in args
+                    .get_many::<String>("name")
+                    .expect("Output name is mandatory")
+                {
+                    if let Err(e) = output::delete(&client, name) {
+                        eprintln!("Failed to delete output {}: {}", name, e);
+                        failed = true;
+                    }
+                }
+                if failed {
                     process::exit(1);
                 }
             }

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::process;
 
+use anyhow::{anyhow, Context};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
@@ -468,23 +469,17 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
     }
 }
 
-pub fn delete(client: EdgeClient, name: &str) -> Result<(), reqwest::Error> {
-    let outputs = match client.find_outputs(name) {
-        Ok(outputs) => outputs,
-        Err(e) => {
-            println!("Failed to list outputs for deleteion: {}", e);
-            process::exit(1);
-        }
-    };
+pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+    let outputs = client
+        .find_outputs(name)
+        .context("Failed to list outputs")?;
     if outputs.is_empty() {
-        eprintln!("Output not found: {}", name);
-        process::exit(1);
+        return Err(anyhow!("Output not found"));
     }
     for output in outputs {
-        if let Err(e) = client.delete_output(&output.id) {
-            println!("Failed to delete output {}: {}", output.name, e);
-            process::exit(1);
-        }
+        client
+            .delete_output(&output.id)
+            .context("Failed to delete output")?;
         println!("Deleted output {}", output.name);
     }
 

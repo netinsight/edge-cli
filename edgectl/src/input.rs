@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::process;
 
+use anyhow::{anyhow, Context};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
@@ -324,23 +325,15 @@ fn get_physical_port(
     }
 }
 
-pub fn delete(client: EdgeClient, name: &str) -> Result<(), reqwest::Error> {
-    let inputs = match client.find_inputs(name) {
-        Ok(inputs) => inputs,
-        Err(e) => {
-            println!("Failed to list inputs for deleteion: {}", e);
-            process::exit(1);
-        }
-    };
+pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+    let inputs = client.find_inputs(name).context("Failed to list inputs")?;
     if inputs.is_empty() {
-        eprintln!("Input not found: {}", name);
-        process::exit(1);
+        return Err(anyhow!("Input not found"));
     }
     for input in inputs {
-        if let Err(e) = client.delete_input(&input.id) {
-            println!("Failed to delete input {}: {}", input.name, e);
-            process::exit(1);
-        }
+        client
+            .delete_input(&input.id)
+            .context("Failed to delete input")?;
         println!("Deleted input {}", input.name);
     }
 
