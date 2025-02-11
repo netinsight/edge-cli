@@ -191,7 +191,7 @@ fn main() {
                                 .long("mode")
                                 .required(true)
                                 .value_parser(clap::builder::PossibleValuesParser::new([
-                                    "rtp", "udp", "sdi",
+                                    "rtp", "udp", "sdi", "srt"
                                 ]))
                                 .help("The input mode"),
                         )
@@ -215,6 +215,13 @@ fn main() {
                                 .help("The destination to send the output to in format ip:port, e.g. 198.51.100.12:4000"),
                         )
                         .arg(
+                            Arg::new("port")
+                                .long("port")
+                                .required(false)
+                                .value_parser(clap::value_parser!(u16).range(1..))
+                                .help("The port to listen on. Only applicable for SRT listeners"),
+                        )
+                        .arg(
                             Arg::new("fec")
                                 .long("fec")
                                 .value_parser(["1D", "2D"])
@@ -234,6 +241,21 @@ fn main() {
                                 .value_parser(clap::value_parser!(u8).range(1..20))
                                 .required(false)
                                 .help("FEC columns"),
+                        ).arg(
+                            Arg::new("caller")
+                                .long("caller")
+                                .num_args(0)
+                                .help("Use an SRT caller. Only applicable for SRT outputs."),
+                        ).arg(
+                            Arg::new("listener")
+                                .long("listener")
+                                .num_args(0)
+                                .help("Use an SRT listener. Only applicable for SRT outputs."),
+                        ).arg(
+                            Arg::new("rendezvous")
+                                .long("rendezvous")
+                                .num_args(0)
+                                .help("Use an SRT rendezvous. Only applicable for SRT outputs."),
                         ),
                 )
                 .subcommand(
@@ -637,6 +659,26 @@ fn main() {
                         output::NewOutputMode::Udp(output::NewUdpOutputMode {
                             address: address.to_owned(),
                             port,
+                        })
+                    }
+                    "srt" => {
+                        if args.get_flag("caller") {
+                            eprintln!("--caller is not yet implemented");
+                            process::exit(1);
+                        }
+                        if args.get_flag("rendezvous") {
+                            eprintln!("--rendezvous is not yet implemented");
+                            process::exit(1);
+                        }
+                        let port = match args.get_one::<u16>("port") {
+                            Some(port) => port,
+                            None => {
+                                eprintln!("--port is required for srt listener outputs");
+                                process::exit(1);
+                            }
+                        };
+                        output::NewOutputMode::Srt(output::NewSrtOutputMode::Listener {
+                            port: *port,
                         })
                     }
                     e => {

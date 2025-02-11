@@ -7,7 +7,8 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
     EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
-    OutputPortFec, RtpOutputPort, SrtOutputPort, UdpOutputPort, ZixiOutputPort,
+    OutputPortFec, RtpOutputPort, SrtKeylen, SrtListenerOutputPort, SrtOutputPort, SrtRateLimiting,
+    UdpOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -332,6 +333,7 @@ pub fn show(client: EdgeClient, name: &str) {
 pub enum NewOutputMode {
     Udp(NewUdpOutputMode),
     Rtp(NewRtpOutputMode),
+    Srt(NewSrtOutputMode),
 }
 
 pub struct NewUdpOutputMode {
@@ -356,6 +358,10 @@ pub struct Fec {
 pub enum FecMode {
     OneD, // 1D
     TwoD, // 2D
+}
+
+pub enum NewSrtOutputMode {
+    Listener { port: u16 },
 }
 
 pub struct NewOutput {
@@ -451,6 +457,17 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
                 fec_cols: rtp.fec.as_ref().map(|fec| fec.cols),
             })]
         }
+        NewOutputMode::Srt(NewSrtOutputMode::Listener { port }) => vec![OutputPort::Srt(
+            SrtOutputPort::Listener(SrtListenerOutputPort {
+                local_ip: interface.addresses[0].address.to_owned(),
+                local_port: port,
+                physical_port: interface.id.to_owned(),
+                latency: 120,
+                pbkeylen: SrtKeylen::None,
+                rate_limiting: SrtRateLimiting::NotEnforced,
+                whitelist_cidr_block: vec!["0.0.0.0/0".to_owned()],
+            }),
+        )],
     };
 
     if let Err(e) = client.create_output(crate::edge::NewOutput {

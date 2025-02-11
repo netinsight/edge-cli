@@ -445,7 +445,37 @@ pub enum SrtOutputPort {
 pub struct SrtListenerOutputPort {
     pub local_ip: String,
     pub local_port: u16,
+    pub physical_port: String,
+    pub latency: u16,
+    pub pbkeylen: SrtKeylen,
+    pub rate_limiting: SrtRateLimiting,
+    // Required on core nodes
+    pub whitelist_cidr_block: Vec<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SrtKeylen {
+    #[serde(rename = "16")]
+    Aes128,
+    #[serde(rename = "24")]
+    Aes192,
+    #[serde(rename = "32")]
+    Aes256,
+    #[serde(rename = "-1")]
+    None,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SrtRateLimiting {
+    #[serde(rename = "Not enforced")]
+    NotEnforced,
+    #[serde(rename = "Absolute")]
+    Absolute,
+    #[serde(rename = "Relative to input")]
+    RelativeToInput,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtCallerOutputPort {
