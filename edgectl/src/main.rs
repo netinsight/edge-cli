@@ -59,6 +59,7 @@ fn main() {
                                 .value_parser(clap::builder::PossibleValuesParser::new([
                                     "rtp",
                                     "udp",
+                                    "srt",
                                     "sdi",
                                     "generator",
                                     "derived",
@@ -139,6 +140,26 @@ fn main() {
                                 .action(ArgAction::Append)
                                 .value_parser(clap::value_parser!(u16).range(1..))
                                 .help("Delete PID from stream (derived streams only)")
+                        ).arg(
+                            Arg::new("caller")
+                                .long("caller")
+                                .num_args(0)
+                                .help("Use an SRT caller. Only applicable for SRT inputs."),
+                        ).arg(
+                            Arg::new("listener")
+                                .long("listener")
+                                .num_args(0)
+                                .help("Use an SRT listener. Only applicable for SRT inputs."),
+                        ).arg(
+                            Arg::new("rendezvous")
+                                .long("rendezvous")
+                                .num_args(0)
+                                .help("Use an SRT rendezvous. Only applicable for SRT inputs."),
+                        ).arg(
+                            Arg::new("destination")
+                                .long("dest")
+                                .required(false)
+                                .help("The destination to for SRT callers format ip:port, e.g. 198.51.100.12:4000"),
                         ),
                 )
                 .subcommand(
@@ -454,6 +475,43 @@ fn main() {
                                 .expect("interface is required"),
                             port: *port,
                             multicast_address: multicast.map(|s| s.to_owned()),
+                        })
+                    }
+                    "srt" => {
+                        if args.get_flag("listener") {
+                            eprintln!("--listener is not yet implemented");
+                            process::exit(1);
+                        }
+                        if args.get_flag("rendezvous") {
+                            eprintln!("--rendezvous is not yet implemented");
+                            process::exit(1);
+                        }
+                        let dest = match args.get_one::<String>("destination") {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for SRT caller inputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+
+                        input::NewInputMode::Srt(input::NewSrtInputMode::Caller {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
+                            address: address.to_owned(),
+                            port,
                         })
                     }
                     "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {

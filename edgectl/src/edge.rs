@@ -692,6 +692,7 @@ pub enum NewInputPort {
     Rtp(RtpInputPort),
     Udp(UdpInputPort),
     Sdi(SdiInputPort),
+    Srt(SrtInputPort),
     Generator(GeneratorInputPort),
 }
 
@@ -716,6 +717,23 @@ pub struct UdpInputPort {
     pub port: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multicast_address: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "srtMode")]
+pub enum SrtInputPort {
+    #[serde(rename_all = "camelCase")]
+    Caller {
+        physical_port: String,
+        remote_ip: String,
+        remote_port: u16,
+        latency: u16,
+        reduced_bitrate_detection: bool,
+        unrecovered_packets_detection: bool,
+    },
+    Listener,
+    Rendezvous,
 }
 
 #[derive(Debug, Serialize)]

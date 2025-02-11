@@ -8,7 +8,7 @@ use tabled::{builder::Builder, settings::Style};
 use crate::edge::{
     AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR,
     GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RtpInputPort,
-    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, UdpInputPort,
+    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, SrtInputPort, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -167,6 +167,7 @@ pub enum NewInputMode {
     Rtp(NewRtpInputMode),
     Udp(NewUdpInputMode),
     Sdi(NewSdiInputMode),
+    Srt(NewSrtInputMode),
     Generator(NewGeneratorInputMode),
     Derived(NewDerivedInputMode),
 }
@@ -184,6 +185,16 @@ pub struct NewUdpInputMode {
     pub port: u16,
     pub multicast_address: Option<String>,
 }
+
+pub enum NewSrtInputMode {
+    Caller {
+        appliance: String,
+        interface: String,
+        address: String,
+        port: u16,
+    },
+}
+
 pub struct NewSdiInputMode {
     pub appliance: String,
     pub interface: String,
@@ -243,6 +254,22 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                     .to_owned(),
                 port: udp.port,
                 multicast_address: udp.multicast_address.clone(),
+            })]
+        }
+        NewInputMode::Srt(NewSrtInputMode::Caller {
+            ref appliance,
+            ref interface,
+            ref address,
+            port,
+        }) => {
+            let interface = get_physical_port(&client, appliance, interface);
+            vec![NewInputPort::Srt(SrtInputPort::Caller {
+                physical_port: interface.id.to_owned(),
+                remote_ip: address.to_owned(),
+                remote_port: port,
+                latency: 120,
+                reduced_bitrate_detection: false,
+                unrecovered_packets_detection: false,
             })]
         }
         NewInputMode::Sdi(ref sdi) => {
