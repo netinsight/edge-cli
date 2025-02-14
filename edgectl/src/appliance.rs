@@ -89,7 +89,14 @@ pub fn show(client: EdgeClient, name: &str) {
         );
         println!(
             "Version (data):       image={}, software={}",
-            appliance.version.data_image_version, appliance.version.data_software_version
+            appliance
+                .version
+                .data_image_version
+                .unwrap_or("unknown".to_owned()),
+            appliance
+                .version
+                .data_software_version
+                .unwrap_or("unknown".to_owned())
         );
         println!("Interfaces:");
         for iface in appliance.physical_ports {

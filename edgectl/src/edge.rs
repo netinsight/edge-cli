@@ -583,8 +583,8 @@ pub struct LimitedAppliance {
 pub struct ApplianceVersion {
     pub control_image_version: String,
     pub control_software_version: String,
-    pub data_image_version: String,
-    pub data_software_version: String,
+    pub data_image_version: Option<String>,
+    pub data_software_version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
