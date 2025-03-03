@@ -5,6 +5,7 @@ mod group;
 mod input;
 mod output;
 mod region;
+mod tunnels;
 
 use std::{env, process};
 
@@ -374,6 +375,12 @@ fn main() {
                         .required(true)
                         .help("The name of the region to create")
                 )),
+        )
+        .subcommand(
+            Command::new("tunnel")
+                .about("Show information about tunnels")
+                .subcommand_required(true)
+                .subcommand(Command::new("list").about("List tunnels"))
         )
         .subcommand(
             Command::new("build-info")
@@ -898,6 +905,10 @@ fn main() {
                     .expect("Region name is mandatory");
                 region::delete(client, name)
             }
+            _ => unreachable!("subcommand_required prevents `None` or other options"),
+        },
+        Some(("tunnel", subcmd)) => match subcmd.subcommand() {
+            Some(("list", _)) => tunnels::list(new_client()),
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
         Some(("build-info", _)) => {

@@ -853,6 +853,58 @@ impl Serialize for ExternalRegionMode {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tunnel {
+    pub id: u32,
+    pub r#type: TunnelType,
+    pub client_name: String,
+    pub server_name: String,
+    pub inputs: Vec<TunnelInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TunnelInput {
+    // pub id: String,
+    // pub name: String,
+}
+
+#[derive(Debug)]
+pub enum TunnelType {
+    External,
+    Internal,
+    InterRegion,
+}
+
+impl<'de> Deserialize<'de> for TunnelType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            1 => Ok(Self::External),
+            2 => Ok(Self::Internal),
+            3 => Ok(Self::InterRegion),
+            _ => Err(D::Error::unknown_variant(
+                &value.to_string(),
+                &["1", "2", "3"],
+            )),
+        }
+    }
+}
+
+impl fmt::Display for TunnelType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::External => write!(f, "external"),
+            Self::Internal => write!(f, "internal"),
+            Self::InterRegion => write!(f, "inter-region"),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildInfo {
@@ -1494,6 +1546,22 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn list_tunnels(&self) -> Result<Vec<Tunnel>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct TunnelListResp {
+            items: Vec<Tunnel>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/tunnel/"#, self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<TunnelListResp>()?.items)
     }
 
     pub fn get_build_info(&self) -> Result<BuildInfo, EdgeError> {
