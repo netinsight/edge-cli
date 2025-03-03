@@ -855,6 +855,53 @@ impl Serialize for ExternalRegionMode {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct KubernetesNode {
+    pub name: String,
+    pub status: String,
+    #[serde(rename = "externalIP")]
+    pub external_ip: String,
+    #[serde(rename = "internalIP")]
+    pub internal_ip: String,
+    pub hostname: String,
+    pub roles: Vec<KubernetesRole>,
+    pub kubelet_version: Option<String>,
+    pub region: KubernetesNodeRegion,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct KubernetesNodeRegion {
+    // pub id: String,
+    pub name: String,
+    pub external: ExternalRegionMode,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KubernetesRole {
+    Core,
+    Thumb,
+    Video,
+    VideoStandby,
+    EdgeConnect,
+    LoadSimulator,
+}
+
+impl fmt::Display for KubernetesRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Core => write!(f, "core"),
+            Self::Thumb => write!(f, "thumb"),
+            Self::Video => write!(f, "video"),
+            Self::VideoStandby => write!(f, "video-standby"),
+            Self::EdgeConnect => write!(f, "edge-connect"),
+            Self::LoadSimulator => write!(f, "load-simulator"),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Tunnel {
     pub id: u32,
     pub r#type: TunnelType,
@@ -1546,6 +1593,22 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn list_kubernetes_nodes(&self) -> Result<Vec<KubernetesNode>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct NodeListResp {
+            items: Vec<KubernetesNode>,
+            // total: u32,
+        }
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/k8s/node/"#, self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<NodeListResp>()?.items)
     }
 
     pub fn list_tunnels(&self) -> Result<Vec<Tunnel>, EdgeError> {

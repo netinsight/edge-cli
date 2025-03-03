@@ -3,6 +3,7 @@ mod buildinfo;
 mod edge;
 mod group;
 mod input;
+mod kubernetes;
 mod output;
 mod region;
 mod tunnels;
@@ -375,6 +376,12 @@ fn main() {
                         .required(true)
                         .help("The name of the region to create")
                 )),
+        )
+        .subcommand(
+            Command::new("node")
+                .about("Show information about kubernetes nodes")
+                .subcommand_required(true)
+                .subcommand(Command::new("list").about("List kubernetes nodes"))
         )
         .subcommand(
             Command::new("tunnel")
@@ -909,6 +916,10 @@ fn main() {
         },
         Some(("tunnel", subcmd)) => match subcmd.subcommand() {
             Some(("list", _)) => tunnels::list(new_client()),
+            _ => unreachable!("subcommand_required prevents `None` or other options"),
+        },
+        Some(("node", subcmd)) => match subcmd.subcommand() {
+            Some(("list", _)) => kubernetes::list_nodes(new_client()),
             _ => unreachable!("subcommand_required prevents `None` or other options"),
         },
         Some(("build-info", _)) => {
