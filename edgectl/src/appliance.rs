@@ -100,8 +100,16 @@ pub fn show(client: EdgeClient, name: &str) {
         );
         println!("Interfaces:");
         for iface in appliance.physical_ports {
+            let networks = iface
+                .networks
+                .into_iter()
+                .map(|n| n.name)
+                .collect::<Vec<_>>()
+                .join(", ");
+
             println!("  - Name: {}", iface.name);
             println!("    Type: {}", iface.port_type);
+            println!("    Networks: {}", networks);
             println!("    Addresses:");
             for addr in iface.addresses {
                 println!("      - Address: {}", addr.address);

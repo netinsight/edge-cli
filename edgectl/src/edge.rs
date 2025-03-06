@@ -625,7 +625,7 @@ pub struct AppliancePhysicalPort {
     // owner is the group id
     // pub owner: Strig,
     pub addresses: Vec<PhysicalPortAddress>,
-    // networks: []
+    pub networks: Vec<ApplianceNetwork>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -643,6 +643,14 @@ pub struct PhysicalPortAddress {
     pub address: String,
     // pub netmask: String,
     pub public_address: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplianceNetwork {
+    // pub id: String,
+    pub name: String,
+    // pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
