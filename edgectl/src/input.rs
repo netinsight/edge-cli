@@ -7,8 +7,9 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
     AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR,
-    GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RtpInputPort,
-    SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, SrtInputPort, UdpInputPort,
+    GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RistInputPort,
+    RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, SrtInputPort,
+    UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -168,6 +169,7 @@ pub enum NewInputMode {
     Udp(NewUdpInputMode),
     Sdi(NewSdiInputMode),
     Srt(NewSrtInputMode),
+    Rist(NewRistInputMode),
     Generator(NewGeneratorInputMode),
     Derived(NewDerivedInputMode),
 }
@@ -179,11 +181,18 @@ pub struct NewRtpInputMode {
     pub fec: bool,
     pub multicast_address: Option<String>,
 }
+
 pub struct NewUdpInputMode {
     pub appliance: String,
     pub interface: String,
     pub port: u16,
     pub multicast_address: Option<String>,
+}
+
+pub struct NewRistInputMode {
+    pub appliance: String,
+    pub interface: String,
+    pub port: u16,
 }
 
 pub enum NewSrtInputMode {
@@ -291,6 +300,24 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                 latency: 120,
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,
+            })]
+        }
+        NewInputMode::Rist(NewRistInputMode {
+            ref appliance,
+            ref interface,
+            port,
+        }) => {
+            let interface = get_physical_port(&client, appliance, interface);
+            vec![NewInputPort::Rist(RistInputPort {
+                physical_port: interface.id.to_owned(),
+                address: interface
+                    .addresses
+                    .first()
+                    .expect("Expected at least one address on the appliance physical port")
+                    .address
+                    .to_owned(),
+                port,
+                profile: "simple".to_owned(),
             })]
         }
         NewInputMode::Sdi(ref sdi) => {

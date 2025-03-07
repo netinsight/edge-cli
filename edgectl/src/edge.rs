@@ -712,6 +712,7 @@ pub enum NewInputPort {
     Udp(UdpInputPort),
     Sdi(SdiInputPort),
     Srt(SrtInputPort),
+    Rist(RistInputPort),
     Generator(GeneratorInputPort),
 }
 
@@ -761,6 +762,15 @@ pub enum SrtInputPort {
         unrecovered_packets_detection: bool,
     },
     Rendezvous,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RistInputPort {
+    pub physical_port: String,
+    pub address: String,
+    pub port: u16,
+    pub profile: String, // can only be 'simple'
 }
 
 #[derive(Debug, Serialize)]

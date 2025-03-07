@@ -63,6 +63,7 @@ fn main() {
                                     "udp",
                                     "srt",
                                     "sdi",
+                                    "rist",
                                     "generator",
                                     "derived",
                                 ]))
@@ -551,6 +552,26 @@ fn main() {
                             eprintln!("Missing either --listener, --caller or --rendezvous flag for creating SRT input");
                             process::exit(1);
                         }
+                    }
+                    "rist" => {
+                        let port = match args.get_one::<u16>("port") {
+                            Some(port) => port,
+                            None => {
+                                eprintln!("--port is required for RIST outputs");
+                                process::exit(1);
+                            }
+                        };
+                        input::NewInputMode::Rist(input::NewRistInputMode {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
+                            port: *port,
+                        })
                     }
                     "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {
                         appliance: args
