@@ -432,7 +432,7 @@ fn main() {
                 let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
                 let bitrate = args.get_one::<input::Bitrate>("bitrate");
 
-                if port.is_some() && mode != "rtp" && mode != "udp" {
+                if port.is_some() && mode != "rtp" && mode != "udp" && mode != "srt" {
                     eprintln!("The port flag is not supported with mode {}", mode);
                     process::exit(1);
                 }
@@ -497,41 +497,60 @@ fn main() {
                         })
                     }
                     "srt" => {
-                        if args.get_flag("listener") {
-                            eprintln!("--listener is not yet implemented");
-                            process::exit(1);
-                        }
                         if args.get_flag("rendezvous") {
                             eprintln!("--rendezvous is not yet implemented");
                             process::exit(1);
-                        }
-                        let dest = match args.get_one::<String>("destination") {
-                            Some(d) => d,
-                            None => {
-                                eprintln!("Dest is required for SRT caller inputs");
-                                process::exit(1);
-                            }
-                        };
-                        let address = dest.split(':').next().expect("dest address is missing");
-                        let port = dest
-                            .split(':')
-                            .last()
-                            .expect("Port number is required for --dest")
-                            .parse::<u16>()
-                            .expect("port needs to be a number between 0 and 65535");
+                        } else if args.get_flag("caller") {
+                            let dest = match args.get_one::<String>("destination") {
+                                Some(d) => d,
+                                None => {
+                                    eprintln!("Dest is required for SRT caller inputs");
+                                    process::exit(1);
+                                }
+                            };
+                            let address = dest.split(':').next().expect("dest address is missing");
+                            let port = dest
+                                .split(':')
+                                .last()
+                                .expect("Port number is required for --dest")
+                                .parse::<u16>()
+                                .expect("port needs to be a number between 0 and 65535");
 
-                        input::NewInputMode::Srt(input::NewSrtInputMode::Caller {
-                            appliance: args
-                                .get_one::<String>("appliance")
-                                .cloned()
-                                .expect("appliance is required"),
-                            interface: args
-                                .get_one::<String>("interface")
-                                .cloned()
-                                .expect("interface is required"),
-                            address: address.to_owned(),
-                            port,
-                        })
+                            input::NewInputMode::Srt(input::NewSrtInputMode::Caller {
+                                appliance: args
+                                    .get_one::<String>("appliance")
+                                    .cloned()
+                                    .expect("appliance is required"),
+                                interface: args
+                                    .get_one::<String>("interface")
+                                    .cloned()
+                                    .expect("interface is required"),
+                                address: address.to_owned(),
+                                port,
+                            })
+                        } else if args.get_flag("listener") {
+                            let port = match args.get_one::<u16>("port") {
+                                Some(port) => port,
+                                None => {
+                                    eprintln!("--port is required for srt listener outputs");
+                                    process::exit(1);
+                                }
+                            };
+                            input::NewInputMode::Srt(input::NewSrtInputMode::Listener {
+                                appliance: args
+                                    .get_one::<String>("appliance")
+                                    .cloned()
+                                    .expect("appliance is required"),
+                                interface: args
+                                    .get_one::<String>("interface")
+                                    .cloned()
+                                    .expect("interface is required"),
+                                port: *port,
+                            })
+                        } else {
+                            eprintln!("Missing either --listener, --caller or --rendezvous flag for creating SRT input");
+                            process::exit(1);
+                        }
                     }
                     "sdi" => input::NewInputMode::Sdi(input::NewSdiInputMode {
                         appliance: args
@@ -756,23 +775,43 @@ fn main() {
                     }
                     "srt" => {
                         if args.get_flag("caller") {
-                            eprintln!("--caller is not yet implemented");
-                            process::exit(1);
-                        }
-                        if args.get_flag("rendezvous") {
+                            let dest = match args.get_one::<String>("destination") {
+                                Some(d) => d,
+                                None => {
+                                    eprintln!("Dest is required for SRT caller outputs");
+                                    process::exit(1);
+                                }
+                            };
+                            let address = dest.split(':').next().expect("dest address is missing");
+                            let port = dest
+                                .split(':')
+                                .last()
+                                .expect("Port number is required for --dest")
+                                .parse::<u16>()
+                                .expect("port needs to be a number between 0 and 65535");
+
+                            output::NewOutputMode::Srt(output::NewSrtOutputMode::Caller {
+                                address: address.to_owned(),
+                                port,
+                            })
+                        } else if args.get_flag("rendezvous") {
                             eprintln!("--rendezvous is not yet implemented");
                             process::exit(1);
+                        } else if args.get_flag("listener") {
+                            let port = match args.get_one::<u16>("port") {
+                                Some(port) => port,
+                                None => {
+                                    eprintln!("--port is required for srt listener outputs");
+                                    process::exit(1);
+                                }
+                            };
+                            output::NewOutputMode::Srt(output::NewSrtOutputMode::Listener {
+                                port: *port,
+                            })
+                        } else {
+                            eprintln!("Need to specify either --caller, --listener or --rendezvous for SRT output");
+                            process::exit(1);
                         }
-                        let port = match args.get_one::<u16>("port") {
-                            Some(port) => port,
-                            None => {
-                                eprintln!("--port is required for srt listener outputs");
-                                process::exit(1);
-                            }
-                        };
-                        output::NewOutputMode::Srt(output::NewSrtOutputMode::Listener {
-                            port: *port,
-                        })
                     }
                     e => {
                         eprintln!("Invalid mode: {}", e);

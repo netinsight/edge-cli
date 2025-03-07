@@ -485,8 +485,13 @@ pub enum SrtRateLimiting {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtCallerOutputPort {
+    pub physical_port: String,
     pub remote_ip: String,
-    pub remote_port: String,
+    pub remote_port: u16,
+
+    pub latency: u16,
+    pub pbkeylen: SrtKeylen,
+    pub rate_limiting: SrtRateLimiting,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -746,7 +751,15 @@ pub enum SrtInputPort {
         reduced_bitrate_detection: bool,
         unrecovered_packets_detection: bool,
     },
-    Listener,
+    #[serde(rename_all = "camelCase")]
+    Listener {
+        physical_port: String,
+        latency: u16,
+        local_ip: String,
+        local_port: u16,
+        reduced_bitrate_detection: bool,
+        unrecovered_packets_detection: bool,
+    },
     Rendezvous,
 }
 

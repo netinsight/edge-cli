@@ -193,6 +193,11 @@ pub enum NewSrtInputMode {
         address: String,
         port: u16,
     },
+    Listener {
+        appliance: String,
+        interface: String,
+        port: u16,
+    },
 }
 
 pub struct NewSdiInputMode {
@@ -267,6 +272,22 @@ pub fn create(client: EdgeClient, new_input: NewInput) {
                 physical_port: interface.id.to_owned(),
                 remote_ip: address.to_owned(),
                 remote_port: port,
+                latency: 120,
+                reduced_bitrate_detection: false,
+                unrecovered_packets_detection: false,
+            })]
+        }
+        NewInputMode::Srt(NewSrtInputMode::Listener {
+            ref appliance,
+            ref interface,
+            port,
+        }) => {
+            let interface = get_physical_port(&client, appliance, interface);
+            vec![NewInputPort::Srt(SrtInputPort::Listener {
+                physical_port: interface.id.to_owned(),
+                local_ip: interface.addresses[0].address.to_owned(),
+                local_port: port,
+
                 latency: 120,
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,

@@ -7,8 +7,8 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
     EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
-    OutputPortFec, RtpOutputPort, SrtKeylen, SrtListenerOutputPort, SrtOutputPort, SrtRateLimiting,
-    UdpOutputPort, ZixiOutputPort,
+    OutputPortFec, RtpOutputPort, SrtCallerOutputPort, SrtKeylen, SrtListenerOutputPort,
+    SrtOutputPort, SrtRateLimiting, UdpOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -364,6 +364,7 @@ pub enum FecMode {
 
 pub enum NewSrtOutputMode {
     Listener { port: u16 },
+    Caller { address: String, port: u16 },
 }
 
 pub struct NewOutput {
@@ -470,6 +471,17 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
                 pbkeylen: SrtKeylen::None,
                 rate_limiting: SrtRateLimiting::NotEnforced,
                 whitelist_cidr_block: vec!["0.0.0.0/0".to_owned()],
+            }),
+        )],
+        NewOutputMode::Srt(NewSrtOutputMode::Caller { address, port }) => vec![OutputPort::Srt(
+            SrtOutputPort::Caller(SrtCallerOutputPort {
+                physical_port: interface.id.to_owned(),
+                remote_ip: address,
+                remote_port: port,
+
+                latency: 120,
+                pbkeylen: SrtKeylen::None,
+                rate_limiting: SrtRateLimiting::NotEnforced,
             }),
         )],
     };
