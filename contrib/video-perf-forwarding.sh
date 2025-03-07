@@ -101,15 +101,18 @@ for i in $(seq "$num_outputs"); do
                 edge input create "$input" --appliance "$test_appliance" --interface "$test_interface" --mode rtp --port "$((4000 + i*6))" --thumbnail edge
             fi
 
-            output="Perftest-$i-s4-RTP_output"
-            if ! grep -qw "$output" <<<"$outputs"; then
-                edge output create "$output" --appliance "$test_appliance" --interface "$test_interface" --mode rtp --dest "$output_ip:$((4000 + i*6))" --input "$input"
-            fi
+            for n in $(seq "$fanout"); do
+                output="Perftest-$i-$n-s4-RTP_output"
+                port=$((4000 + (i*fanout+(n-1))*6))
+                if ! grep -qw "$output" <<<"$outputs"; then
+                    edge output create "$output" --appliance "$test_appliance" --interface "$test_interface" --mode rtp --fec 2D --fec-rows 5 --fec-cols 5 --dest "$output_ip:$port" --input "$input"
+                fi
 
-            tr101290_input="Perftest-$i-s5-RTP_input_tr101290"
-            if ! grep -qw "$tr101290_input" <<<"$inputs"; then
-                edge input create "$tr101290_input" --appliance "$output_appliance" --interface "$output_interface" --mode rtp --port "$((4000 + i*6))" --thumbnail none
-            fi
+                tr101290_input="Perftest-$i-$n-s5-RTP_input_tr101290"
+                if ! grep -qw "$tr101290_input" <<<"$inputs"; then
+                    edge input create "$tr101290_input" --appliance "$output_appliance" --interface "$output_interface" --mode rtp --fec --port "$port" --thumbnail none
+                fi
+            done
 
             ;;
         srt)
