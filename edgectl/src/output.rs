@@ -7,8 +7,8 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
     EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
-    OutputPortFec, RtpOutputPort, SrtCallerOutputPort, SrtKeylen, SrtListenerOutputPort,
-    SrtOutputPort, SrtRateLimiting, UdpOutputPort, ZixiOutputPort,
+    OutputPortFec, RistOutputPort, RtpOutputPort, SrtCallerOutputPort, SrtKeylen,
+    SrtListenerOutputPort, SrtOutputPort, SrtRateLimiting, UdpOutputPort, ZixiOutputPort,
 };
 
 impl fmt::Display for OutputHealthState {
@@ -334,6 +334,7 @@ pub enum NewOutputMode {
     Udp(NewUdpOutputMode),
     Rtp(NewRtpOutputMode),
     Srt(NewSrtOutputMode),
+    Rist(NewRistOutputMode),
 }
 
 pub struct NewUdpOutputMode {
@@ -365,6 +366,12 @@ pub enum FecMode {
 pub enum NewSrtOutputMode {
     Listener { port: u16 },
     Caller { address: String, port: u16 },
+}
+
+pub struct NewRistOutputMode {
+    pub address: String,
+    pub port: u16,
+    pub source_addr: Option<String>,
 }
 
 pub struct NewOutput {
@@ -484,6 +491,13 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
                 rate_limiting: SrtRateLimiting::NotEnforced,
             }),
         )],
+        NewOutputMode::Rist(rist) => vec![OutputPort::Rist(RistOutputPort {
+            address: rist.address,
+            port: rist.port,
+            physical_port: interface.id.to_owned(),
+            source_address: rist.source_addr,
+            profile: "simple".to_owned(),
+        })],
     };
 
     if let Err(e) = client.create_output(crate::edge::NewOutput {

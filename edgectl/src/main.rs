@@ -215,7 +215,7 @@ fn main() {
                                 .long("mode")
                                 .required(true)
                                 .value_parser(clap::builder::PossibleValuesParser::new([
-                                    "rtp", "udp", "sdi", "srt"
+                                    "rtp", "udp", "sdi", "srt", "rist",
                                 ]))
                                 .help("The input mode"),
                         )
@@ -433,7 +433,7 @@ fn main() {
                 let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
                 let bitrate = args.get_one::<input::Bitrate>("bitrate");
 
-                if port.is_some() && mode != "rtp" && mode != "udp" && mode != "srt" {
+                if port.is_some() && !matches!(mode, "rtp" | "udp" | "srt" | "rist") {
                     eprintln!("The port flag is not supported with mode {}", mode);
                     process::exit(1);
                 }
@@ -720,7 +720,7 @@ fn main() {
 
                 if source.is_some() {
                     match mode {
-                        "rtp" | "udp" => {} // RIST also has support in the API
+                        "rtp" | "udp" | "rist" => {}
                         _ => {
                             eprintln!(
                                 "The --source flag is only supported for RTP and UDP outputs"
@@ -833,6 +833,27 @@ fn main() {
                             eprintln!("Need to specify either --caller, --listener or --rendezvous for SRT output");
                             process::exit(1);
                         }
+                    }
+                    "rist" => {
+                        let dest = match dest {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for RIST outputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+                        output::NewOutputMode::Rist(output::NewRistOutputMode {
+                            address: address.to_owned(),
+                            port,
+                            source_addr: source,
+                        })
                     }
                     e => {
                         eprintln!("Invalid mode: {}", e);

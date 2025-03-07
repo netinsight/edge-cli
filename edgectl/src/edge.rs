@@ -432,9 +432,10 @@ pub enum OutputPortFec {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RistOutputPort {
-    pub profile: String,
     pub address: String,
     pub port: u16,
+    pub physical_port: String,
+    pub profile: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_address: Option<String>,
 }
