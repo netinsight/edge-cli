@@ -10,6 +10,7 @@
 bitrate="$((20 * 1000000))"
 test_appliance=dut
 protocol=srt
+fanout=1
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --protocol)
             protocol="$2"
+            shift 2
+            ;;
+        --fanout)
+            fanout="$2"
             shift 2
             ;;
         -*)
@@ -118,15 +123,18 @@ for i in $(seq "$num_outputs"); do
                 edge input create "$input" --appliance "$test_appliance" --interface "$test_interface" --mode srt --listener --port "$((4000 + i*6))" --thumbnail edge
             fi
 
-            output="Perftest-$i-s4-SRT_output"
-            if ! grep -qw "$output" <<<"$outputs"; then
-                edge output create "$output" --appliance "$test_appliance" --interface "$test_interface" --mode srt --caller --dest "$output_ip:$((4000 + i*6))" --input "$input"
-            fi
+            for n in $(seq "$fanout"); do
+                output="Perftest-$i-$n-s4-SRT_output"
+                port=$((4000 + (i*fanout+(n-1))*6))
+                if ! grep -qw "$output" <<<"$outputs"; then
+                    edge output create "$output" --appliance "$test_appliance" --interface "$test_interface" --mode srt --caller --dest "$output_ip:$port" --input "$input"
+                fi
 
-            tr101290_input="Perftest-$i-s5-SRT_input_tr101290"
-            if ! grep -qw "$tr101290_input" <<<"$inputs"; then
-                edge input create "$tr101290_input" --appliance "$output_appliance" --interface "$output_interface" --mode srt --listener --port "$((4000 + i*6))" --thumbnail none
-            fi
+                tr101290_input="Perftest-$i-$n-s5-SRT_input_tr101290"
+                if ! grep -qw "$tr101290_input" <<<"$inputs"; then
+                    edge input create "$tr101290_input" --appliance "$output_appliance" --interface "$output_interface" --mode srt --listener --port "$port" --thumbnail none
+                fi
+            done
             ;;
         *)
             echo >&2 "Unknown protocol $protocol"
