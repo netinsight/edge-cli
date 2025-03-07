@@ -136,6 +136,30 @@ for i in $(seq "$num_outputs"); do
                 fi
             done
             ;;
+        rist)
+            gen_out="Perftest-$i-s2-RIST_gen_output"
+            if ! grep -qw "$gen_out" <<<"$outputs"; then
+                edge output create "$gen_out" --appliance "$generator_appliance" --interface "$generator_interface" --mode rist --dest "$test_ip:$((4000 + i*6))" --input "$gen_in"
+            fi
+
+            input="Perftest-$i-s3-RIST_input"
+            if ! grep -qw "$input" <<<"$inputs"; then
+                edge input create "$input" --appliance "$test_appliance" --interface "$test_interface" --mode rist --port "$((4000 + i*6))" --thumbnail edge
+            fi
+
+            for n in $(seq "$fanout"); do
+                output="Perftest-$i-$n-s4-RIST_output"
+                port=$((4000 + (i*fanout+(n-1))*6))
+                if ! grep -qw "$output" <<<"$outputs"; then
+                    edge output create "$output" --appliance "$test_appliance" --interface "$test_interface" --mode rist --dest "$output_ip:$port" --input "$input"
+                fi
+
+                tr101290_input="Perftest-$i-$n-s5-RIST_input_tr101290"
+                if ! grep -qw "$tr101290_input" <<<"$inputs"; then
+                    edge input create "$tr101290_input" --appliance "$output_appliance" --interface "$output_interface" --mode rist --port "$port" --thumbnail none
+                fi
+            done
+            ;;
         *)
             echo >&2 "Unknown protocol $protocol"
             exit 1
