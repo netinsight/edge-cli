@@ -403,6 +403,8 @@ pub struct UdpOutputPort {
     pub address: String,
     pub port: u16,
     pub physical_port: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_address: Option<String>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -416,6 +418,8 @@ pub struct RtpOutputPort {
     pub fec_rows: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fec_cols: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_address: Option<String>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -431,6 +435,8 @@ pub struct RistOutputPort {
     pub profile: String,
     pub address: String,
     pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_address: Option<String>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

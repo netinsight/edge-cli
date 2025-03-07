@@ -339,12 +339,14 @@ pub enum NewOutputMode {
 pub struct NewUdpOutputMode {
     pub address: String,
     pub port: u16,
+    pub source_addr: Option<String>,
 }
 
 pub struct NewRtpOutputMode {
     pub address: String,
     pub port: u16,
     pub fec: Option<Fec>,
+    pub source_addr: Option<String>,
 }
 
 #[derive(Clone)]
@@ -441,6 +443,7 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
             address: udp.address,
             port: udp.port,
             physical_port: interface.id.to_owned(),
+            source_address: udp.source_addr,
         })],
         NewOutputMode::Rtp(rtp) => {
             let fec = rtp.fec.as_ref().map(|fec| match fec.mode {
@@ -455,6 +458,7 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
                 fec,
                 fec_rows: rtp.fec.as_ref().map(|fec| fec.rows),
                 fec_cols: rtp.fec.as_ref().map(|fec| fec.cols),
+                source_address: rtp.source_addr,
             })]
         }
         NewOutputMode::Srt(NewSrtOutputMode::Listener { port }) => vec![OutputPort::Srt(

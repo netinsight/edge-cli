@@ -245,6 +245,11 @@ fn main() {
                                 .help("The port to listen on. Only applicable for SRT listeners"),
                         )
                         .arg(
+                            Arg::new("source")
+                                .long("source")
+                                .help("The source IP address. Applicable for UDP and RTP."),
+                        )
+                        .arg(
                             Arg::new("fec")
                                 .long("fec")
                                 .value_parser(["1D", "2D"])
@@ -666,9 +671,23 @@ fn main() {
                     .map(|s| s.as_str())
                     .expect("input is required");
 
+                let source = args.get_one::<String>("source").cloned();
+
                 if args.get_one::<String>("fec").is_some() && mode != "rtp" {
                     eprintln!("The --fec argument is only supported for --mode rtp");
                     process::exit(1);
+                }
+
+                if source.is_some() {
+                    match mode {
+                        "rtp" | "udp" => {} // RIST also has support in the API
+                        _ => {
+                            eprintln!(
+                                "The --source flag is only supported for RTP and UDP outputs"
+                            );
+                            process::exit(1);
+                        }
+                    }
                 }
 
                 let mode = match mode {
@@ -711,6 +730,7 @@ fn main() {
                             address: address.to_owned(),
                             port,
                             fec,
+                            source_addr: source,
                         })
                     }
                     "udp" => {
@@ -731,6 +751,7 @@ fn main() {
                         output::NewOutputMode::Udp(output::NewUdpOutputMode {
                             address: address.to_owned(),
                             port,
+                            source_addr: source,
                         })
                     }
                     "srt" => {
