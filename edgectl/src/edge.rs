@@ -475,7 +475,7 @@ pub struct SrtListenerOutputPort {
     pub pbkeylen: SrtKeylen,
     pub rate_limiting: SrtRateLimiting,
     // Required on core nodes
-    pub whitelist_cidr_block: Vec<String>,
+    pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

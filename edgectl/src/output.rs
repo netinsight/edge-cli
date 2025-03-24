@@ -824,7 +824,7 @@ fn create(client: EdgeClient, new_output: NewOutput) {
                 latency: 120,
                 pbkeylen: SrtKeylen::None,
                 rate_limiting: SrtRateLimiting::NotEnforced,
-                whitelist_cidr_block: vec!["0.0.0.0/0".to_owned()],
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             }),
         )],
         NewOutputMode::Srt(NewSrtOutputMode::Caller { address, port }) => vec![OutputPort::Srt(
