@@ -371,7 +371,7 @@ impl fmt::Display for OutputHealthState {
             Self::NotAcknowledged => write!(f, "No ACKs recieved"),
             Self::InputError => write!(f, "\x1b[31m✗\x1b[0m Input error"),
             Self::OutputError => write!(f, "\x1b[31m✗\x1b[0m Output error"),
-            Self::Alarm => write!(f, "\x1b[31m✗\x1b[0m Alarmc"),
+            Self::Alarm => write!(f, "\x1b[31m✗\x1b[0m Alarm"),
         }
     }
 }
