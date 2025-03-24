@@ -1,8 +1,52 @@
 use std::{fmt, process};
 
+use clap::{Arg, ArgMatches, Command};
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::{EdgeClient, ExternalRegionMode, NewRegion};
+use crate::edge::{new_client, EdgeClient, ExternalRegionMode, NewRegion};
+
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("region")
+        .about("Manage regions")
+        .subcommand(Command::new("list").about("List regions"))
+        .subcommand(
+            Command::new("create").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The name of the region to create"),
+            ),
+        )
+        .subcommand(
+            Command::new("delete").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The name of the region to create"),
+            ),
+        )
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", _)) | None => list(new_client()),
+        Some(("create", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Region name is mandatory");
+            create(client, name)
+        }
+        Some(("delete", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Region name is mandatory");
+            delete(client, name)
+        }
+        _ => unreachable!("subcommand_required prevents `None` or other options"),
+    }
+}
 
 impl fmt::Display for ExternalRegionMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -14,7 +58,7 @@ impl fmt::Display for ExternalRegionMode {
     }
 }
 
-pub fn list(client: EdgeClient) {
+fn list(client: EdgeClient) {
     let regions = match client.list_regions() {
         Ok(regions) => regions,
         Err(e) => {
@@ -39,7 +83,7 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn create(client: EdgeClient, name: &str) {
+fn create(client: EdgeClient, name: &str) {
     if let Err(e) = client.create_region(NewRegion {
         name: name.to_string(),
         external: ExternalRegionMode::External,
@@ -49,7 +93,7 @@ pub fn create(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn delete(client: EdgeClient, name: &str) {
+fn delete(client: EdgeClient, name: &str) {
     let region = match client.find_region(name) {
         Ok(regions) if regions.is_empty() => {
             eprintln!("No region named {} found", name);

@@ -1,8 +1,24 @@
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::EdgeClient;
+use crate::edge::{new_client, EdgeClient};
 
-pub fn list(client: EdgeClient) {
+use clap::{ArgMatches, Command};
+
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("tunnel")
+        .about("Show information about tunnels")
+        .subcommand_required(true)
+        .subcommand(Command::new("list").about("List tunnels"))
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", _)) => list(new_client()),
+        _ => unreachable!("subcommand_required prevents `None` or other options"),
+    }
+}
+
+fn list(client: EdgeClient) {
     let tunnels = client.list_tunnels().expect("Failed to fetch tunnel list");
 
     let mut builder = Builder::default();

@@ -1,9 +1,126 @@
 use std::{fmt, process};
 
 use anyhow::{anyhow, Context};
+use clap::{Arg, ArgMatches, Command};
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::{Appliance, ApplianceHealthState, AppliancePortType, EdgeClient};
+use crate::edge::{new_client, Appliance, ApplianceHealthState, AppliancePortType, EdgeClient};
+
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("appliance")
+        .about("Manage appliances")
+        .subcommand_required(true)
+        .subcommand(Command::new("list"))
+        .subcommand(
+            Command::new("show").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The appliance name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("inputs").about("List appliance inputs").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The appliance name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("outputs").about("List appliance outputs").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The appliance name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("delete").arg(
+                Arg::new("name")
+                    .required(true)
+                    .num_args(1..)
+                    .help("The name of the appliances to delete"),
+            ),
+        )
+        .subcommand(
+            Command::new("config").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The name of the appliance"),
+            ),
+        )
+        .subcommand(
+            Command::new("restart").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The name of the appliance"),
+            ),
+        )
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", _)) | None => {
+            let client = new_client();
+            list(client)
+        }
+        Some(("show", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Appliance name is mandatory");
+            show(client, name)
+        }
+        Some(("delete", args)) => {
+            let client = new_client();
+            let mut failed = false;
+            for name in args
+                .get_many::<String>("name")
+                .expect("Appliance name is mandatory")
+            {
+                if let Err(e) = delete(&client, name) {
+                    eprintln!("Failed to delete appliance {}: {}", name, e);
+                    failed = true;
+                }
+            }
+            if failed {
+                process::exit(1);
+            }
+        }
+        Some(("inputs", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Appliance name is mandatory");
+            inputs(client, name)
+        }
+        Some(("outputs", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Appliance name is mandatory");
+            outputs(client, name)
+        }
+        Some(("config", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Appliance name is mandatory");
+            config(client, name)
+        }
+        Some(("restart", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Appliance name is mandatory");
+            restart(client, name)
+        }
+        _ => unreachable!("subcommand_required prevents `None` or other options"),
+    }
+}
 
 impl fmt::Display for ApplianceHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -26,7 +143,7 @@ impl fmt::Display for AppliancePortType {
     }
 }
 
-pub fn list(client: EdgeClient) {
+fn list(client: EdgeClient) {
     let appliances = client
         .list_appliances()
         .expect("Failed to fetch appliance list");
@@ -50,7 +167,7 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn show(client: EdgeClient, name: &str) {
+fn show(client: EdgeClient, name: &str) {
     let appliances = match client.find_appliances(name) {
         Ok(appls) => appls,
         Err(e) => {
@@ -134,7 +251,7 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
     let appliances = client
         .find_appliances(name)
         .context("Failed to list appliances for deletion")?;
@@ -153,7 +270,7 @@ pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn inputs(client: EdgeClient, name: &str) {
+fn inputs(client: EdgeClient, name: &str) {
     let appliance = get_appliance(&client, name);
     let inputs = match client.get_appliance_inputs(&appliance.id) {
         Ok(inputs) => inputs,
@@ -181,7 +298,7 @@ pub fn inputs(client: EdgeClient, name: &str) {
     println!("{}", table)
 }
 
-pub fn outputs(client: EdgeClient, name: &str) {
+fn outputs(client: EdgeClient, name: &str) {
     let appliance = get_appliance(&client, name);
     let outputs = match client.get_appliance_outputs(&appliance.id) {
         Ok(outputs) => outputs,
@@ -209,7 +326,7 @@ pub fn outputs(client: EdgeClient, name: &str) {
     println!("{}", table)
 }
 
-pub fn config(client: EdgeClient, name: &str) {
+fn config(client: EdgeClient, name: &str) {
     let appliance = get_appliance(&client, name);
     let config = match client.get_appliance_config(&appliance.id) {
         Ok(config) => config,
@@ -221,7 +338,7 @@ pub fn config(client: EdgeClient, name: &str) {
     println!("{}", serde_json::to_string_pretty(&config).unwrap());
 }
 
-pub fn restart(client: EdgeClient, name: &str) {
+fn restart(client: EdgeClient, name: &str) {
     let appliance = get_appliance(&client, name);
     eprintln!("Restarting appliance {}", appliance.name);
     if let Err(e) = client.restart_appliance(&appliance.id) {

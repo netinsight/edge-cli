@@ -1,8 +1,26 @@
 use std::fmt;
+use std::{env, process};
 
 use reqwest::blocking::Response;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
+
+pub fn new_client() -> EdgeClient {
+    let client = EdgeClient::with_url(
+        env::var("EDGE_URL")
+            .expect("missing environment variable: EDGE_URL")
+            .as_ref(),
+    );
+    if let Err(e) = client.login(
+        "admin".to_owned(),
+        env::var("EDGE_PASSWORD").expect("missing environment variable: EDGE_PASSWORD"),
+    ) {
+        eprintln!("Failed to authorize against the API: {}", e);
+        process::exit(1);
+    }
+
+    client
+}
 
 pub struct EdgeClient {
     pub client: reqwest::blocking::Client,

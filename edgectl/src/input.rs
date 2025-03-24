@@ -1,3 +1,4 @@
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::process;
@@ -6,10 +7,10 @@ use anyhow::{anyhow, Context};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate, GeneratorBitrateCBR,
-    GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort, PidMap, RistInputPort,
-    RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort, SrtInputPort,
-    UdpInputPort,
+    new_client, AppliancePhysicalPort, DerivableInputSource, EdgeClient, GeneratorBitrate,
+    GeneratorBitrateCBR, GeneratorInputPort, IngestTransform, InputAdminStatus, NewInputPort,
+    PidMap, RistInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort,
+    SrtInputPort, UdpInputPort,
 };
 
 impl fmt::Display for crate::edge::InputHealth {
@@ -22,7 +23,487 @@ impl fmt::Display for crate::edge::InputHealth {
     }
 }
 
-pub fn list(client: EdgeClient) {
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("input")
+        .about("Manage inputs")
+        .subcommand_required(true)
+        .subcommand(
+            Command::new("list").arg(
+                Arg::new("output")
+                    .long("output")
+                    .short('o')
+                    .value_parser(["short", "wide"])
+                    .default_value("short")
+                    .help("Change the output format"),
+            ),
+        )
+        .subcommand(
+            Command::new("show").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The input name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("create")
+                .arg(
+                    Arg::new("name")
+                        .required(true)
+                        .help("The name of the new input"),
+                )
+                .arg(
+                    Arg::new("appliance")
+                        .short('a')
+                        .long("appliance")
+                        .required(false)
+                        .help("The appliance to create the input on"),
+                )
+                .arg(
+                    Arg::new("mode")
+                        .short('m')
+                        .long("mode")
+                        .required(true)
+                        .value_parser(clap::builder::PossibleValuesParser::new([
+                            "rtp",
+                            "udp",
+                            "srt",
+                            "sdi",
+                            "rist",
+                            "generator",
+                            "derived",
+                        ]))
+                        .help("The input mode"),
+                )
+                .arg(
+                    Arg::new("interface")
+                        .short('i')
+                        .long("interface")
+                        .required(false)
+                        .help("The interface on the appliance to create the input on"),
+                )
+                .arg(
+                    Arg::new("thumbnail")
+                        .long("thumbnail")
+                        .value_parser(clap::builder::PossibleValuesParser::new([
+                            "core", "edge", "none",
+                        ]))
+                        .default_value("edge")
+                        .help("Set thumbnailing mode"),
+                )
+                .arg(
+                    Arg::new("port")
+                        .short('p')
+                        .long("port")
+                        .value_parser(clap::value_parser!(u16).range(1..))
+                        .action(clap::ArgAction::Set)
+                        .required(false)
+                        .help("The TCP or UDP port to listen to"),
+                )
+                .arg(
+                    Arg::new("fec")
+                        .long("fec")
+                        .num_args(0)
+                        .help("Enable FEC for RTP inputs"),
+                )
+                .arg(
+                    Arg::new("multicast")
+                        .long("multicast")
+                        .help("Specify source multicast address for RTP and UDP inputs"),
+                )
+                .arg(
+                    Arg::new("bitrate")
+                        .long("bitrate")
+                        .num_args(1)
+                        .value_parser(|val: &str| -> Result<Bitrate, String> {
+                            if val == "vbr" {
+                                Ok(Bitrate::Vbr)
+                            } else {
+                                parse_bitrate(val).map(Bitrate::Cbr)
+                            }
+                        })
+                        .help("Set bitrate for generator"),
+                )
+                .arg(
+                    Arg::new("parent")
+                        .long("parent")
+                        .num_args(1)
+                        .help("The parent input for derived inputs. Requires --mode derived"),
+                )
+                .arg(
+                    Arg::new("map")
+                        .long("map")
+                        .num_args(2)
+                        .action(ArgAction::Append)
+                        .value_parser(clap::value_parser!(u16).range(1..))
+                        .help("Map PIDs in the stream (derived streams only)"),
+                )
+                .arg(
+                    Arg::new("set-null")
+                        .long("set-null")
+                        .action(ArgAction::Append)
+                        .value_parser(clap::value_parser!(u16).range(1..))
+                        .help("Replace PID with null packets (derived streams only)"),
+                )
+                .arg(
+                    Arg::new("delete")
+                        .long("delete")
+                        .action(ArgAction::Append)
+                        .value_parser(clap::value_parser!(u16).range(1..))
+                        .help("Delete PID from stream (derived streams only)"),
+                )
+                .arg(
+                    Arg::new("caller")
+                        .long("caller")
+                        .num_args(0)
+                        .help("Use an SRT caller. Only applicable for SRT inputs."),
+                )
+                .arg(
+                    Arg::new("listener")
+                        .long("listener")
+                        .num_args(0)
+                        .help("Use an SRT listener. Only applicable for SRT inputs."),
+                )
+                .arg(
+                    Arg::new("rendezvous")
+                        .long("rendezvous")
+                        .num_args(0)
+                        .help("Use an SRT rendezvous. Only applicable for SRT inputs."),
+                )
+                .arg(Arg::new("destination").long("dest").required(false).help(
+                    "The destination to for SRT callers format ip:port, e.g. 198.51.100.12:4000",
+                )),
+        )
+        .subcommand(
+            Command::new("delete").arg(
+                Arg::new("name")
+                    .required(true)
+                    .num_args(1..)
+                    .help("The name of the inputs to remove"),
+            ),
+        )
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", args)) => {
+            let client = new_client();
+            match args.get_one::<String>("output").map(|s| s.as_str()) {
+                Some("wide") => list_wide(client),
+                _ => list(client),
+            };
+        }
+        Some(("show", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("input name should not be None");
+
+            show(client, name);
+        }
+        Some(("create", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("name is required");
+            let port = args.get_one::<u16>("port");
+            let mode = args
+                .get_one::<String>("mode")
+                .map(|s| s.as_str())
+                .expect("mode is required");
+            let multicast = args.get_one::<String>("multicast").map(|s| s.as_str());
+            let bitrate = args.get_one::<Bitrate>("bitrate");
+
+            if port.is_some() && !matches!(mode, "rtp" | "udp" | "srt" | "rist") {
+                eprintln!("The port flag is not supported with mode {}", mode);
+                process::exit(1);
+            }
+
+            if args.get_flag("fec") && mode != "rtp" {
+                eprintln!("The fec flag is only supported with RTP inputs");
+                process::exit(1);
+            }
+
+            if multicast.is_some() && mode != "rtp" && mode != "udp" {
+                eprintln!("The multicast flag is not supported with mode {}", mode);
+                process::exit(1);
+            }
+
+            if bitrate.is_some() && mode != "generator" {
+                eprintln!("Bitrate is only supported for generator inputs");
+                process::exit(1);
+            }
+
+            let mode = match mode {
+                "rtp" => {
+                    let port = match port {
+                        Some(p) => p,
+                        None => {
+                            eprintln!("Port is required for RTP inputs");
+                            process::exit(1);
+                        }
+                    };
+                    NewInputMode::Rtp(NewRtpInputMode {
+                        appliance: args
+                            .get_one::<String>("appliance")
+                            .cloned()
+                            .expect("appliance is required"),
+                        interface: args
+                            .get_one::<String>("interface")
+                            .cloned()
+                            .expect("interface is required"),
+                        port: *port,
+                        fec: args.get_flag("fec"),
+                        multicast_address: multicast.map(|s| s.to_owned()),
+                    })
+                }
+                "udp" => {
+                    let port = match port {
+                        Some(p) => p,
+                        None => {
+                            eprintln!("Port is required for UDP inputs");
+                            process::exit(1);
+                        }
+                    };
+                    NewInputMode::Udp(NewUdpInputMode {
+                        appliance: args
+                            .get_one::<String>("appliance")
+                            .cloned()
+                            .expect("appliance is required"),
+                        interface: args
+                            .get_one::<String>("interface")
+                            .cloned()
+                            .expect("interface is required"),
+                        port: *port,
+                        multicast_address: multicast.map(|s| s.to_owned()),
+                    })
+                }
+                "srt" => {
+                    if args.get_flag("rendezvous") {
+                        eprintln!("--rendezvous is not yet implemented");
+                        process::exit(1);
+                    } else if args.get_flag("caller") {
+                        let dest = match args.get_one::<String>("destination") {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for SRT caller inputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+
+                        NewInputMode::Srt(NewSrtInputMode::Caller {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
+                            address: address.to_owned(),
+                            port,
+                        })
+                    } else if args.get_flag("listener") {
+                        let port = match args.get_one::<u16>("port") {
+                            Some(port) => port,
+                            None => {
+                                eprintln!("--port is required for srt listener outputs");
+                                process::exit(1);
+                            }
+                        };
+                        NewInputMode::Srt(NewSrtInputMode::Listener {
+                            appliance: args
+                                .get_one::<String>("appliance")
+                                .cloned()
+                                .expect("appliance is required"),
+                            interface: args
+                                .get_one::<String>("interface")
+                                .cloned()
+                                .expect("interface is required"),
+                            port: *port,
+                        })
+                    } else {
+                        eprintln!("Missing either --listener, --caller or --rendezvous flag for creating SRT input");
+                        process::exit(1);
+                    }
+                }
+                "rist" => {
+                    let port = match args.get_one::<u16>("port") {
+                        Some(port) => port,
+                        None => {
+                            eprintln!("--port is required for RIST outputs");
+                            process::exit(1);
+                        }
+                    };
+                    NewInputMode::Rist(NewRistInputMode {
+                        appliance: args
+                            .get_one::<String>("appliance")
+                            .cloned()
+                            .expect("appliance is required"),
+                        interface: args
+                            .get_one::<String>("interface")
+                            .cloned()
+                            .expect("interface is required"),
+                        port: *port,
+                    })
+                }
+                "sdi" => NewInputMode::Sdi(NewSdiInputMode {
+                    appliance: args
+                        .get_one::<String>("appliance")
+                        .cloned()
+                        .expect("appliance is required"),
+                    interface: args
+                        .get_one::<String>("interface")
+                        .cloned()
+                        .expect("interface is required"),
+                }),
+                "generator" => {
+                    if args.contains_id("interface") {
+                        eprintln!("Cannot specify interface for generator input");
+                        process::exit(1)
+                    }
+
+                    NewInputMode::Generator(NewGeneratorInputMode {
+                        appliance: args
+                            .get_one::<String>("appliance")
+                            .cloned()
+                            .expect("appliance is required"),
+                        bitrate: bitrate.unwrap_or(&Bitrate::Vbr).clone(),
+                    })
+                }
+                "derived" => {
+                    let mut rules: Vec<PIDRule> = Vec::new();
+                    let maps = args
+                        .get_occurrences::<u16>("map")
+                        .unwrap_or_default()
+                        .map(Iterator::collect)
+                        .map(|m: Vec<&u16>| PIDRule::Map(*m[0], *m[1]));
+                    let deletes = args
+                        .get_many::<u16>("delete")
+                        .unwrap_or_default()
+                        .map(|d| PIDRule::Delete(*d));
+
+                    let nulls = args
+                        .get_many::<u16>("set-null")
+                        .unwrap_or_default()
+                        .map(|d| PIDRule::SetNull(*d));
+
+                    rules.extend(maps);
+                    rules.extend(deletes);
+                    rules.extend(nulls);
+
+                    NewInputMode::Derived(NewDerivedInputMode {
+                        parent: args
+                            .get_one::<String>("parent")
+                            .expect("parent is required for derived inputs")
+                            .to_owned(),
+                        pid_rules: rules,
+                    })
+                }
+                e => {
+                    eprintln!("Invalid mode: {}", e);
+                    process::exit(1);
+                }
+            };
+
+            let thumbnail_mode = match args.get_one::<String>("thumbnail").map(|s| s.as_str()) {
+                Some("edge") => ThumbnailMode::Edge,
+                Some("core") => ThumbnailMode::Core,
+                Some("none") => ThumbnailMode::None,
+                _ => ThumbnailMode::Edge,
+            };
+
+            create(
+                client,
+                NewInput {
+                    name: name.to_owned(),
+                    thumbnails: thumbnail_mode,
+                    mode,
+                },
+            )
+        }
+        Some(("delete", args)) => {
+            let client = new_client();
+            let mut failed = false;
+            for name in args
+                .get_many::<String>("name")
+                .expect("Input name is mandatory")
+            {
+                if let Err(e) = delete(&client, name) {
+                    eprintln!("Failed to delete input {}: {}", name, e);
+                    failed = true;
+                }
+            }
+            if failed {
+                process::exit(1);
+            }
+        }
+        Some((cmd, _)) => {
+            eprintln!("Command input {cmd} is not yet implemented");
+            process::exit(1);
+        }
+        None => unreachable!("subcommand_required prevents `None`"),
+    }
+}
+
+fn parse_bitrate(val: &str) -> Result<u64, String> {
+    let num_end = val.find(|c: char| !c.is_ascii_digit()).unwrap_or(val.len());
+    let (num, unit) = val.split_at(num_end);
+    if let Ok(num) = num.parse::<u64>() {
+        match unit {
+            "k" | "kb" | "kbps" => Ok(1000 * num),
+            "ki" | "kib" => Ok(1024 * num),
+            "M" | "Mb" | "Mbps" => Ok(1000 * 1000 * num),
+            "Mi" | "Mib" => Ok(1024 * 1024 * num),
+            "" => Ok(num),
+            _ => Err(format!("Invalid bitrate: {}", val)),
+        }
+    } else {
+        Err(format!("Invalid bitrate: {}", val))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_parses_bitrate() {
+        fn test_bitrate(bitrate: &str, res: Result<u64, String>) {
+            assert_eq!(
+                parse_bitrate(bitrate),
+                res,
+                "Got wrong result when parsing {}",
+                bitrate,
+            );
+        }
+        test_bitrate("1024", Ok(1024));
+        test_bitrate("1000", Ok(1000));
+        test_bitrate("1k", Ok(1000));
+        test_bitrate("1kb", Ok(1000));
+        test_bitrate("1kbps", Ok(1000));
+        test_bitrate("1Mbps", Ok(1_000_000));
+        test_bitrate("1Mb", Ok(1_000_000));
+        test_bitrate("1Mib", Ok(1024 * 1024));
+        test_bitrate("1Mib", Ok(1024 * 1024));
+        test_bitrate("12345Mib", Ok(12345 * 1024 * 1024));
+        test_bitrate("1mib", Err("Invalid bitrate: 1mib".to_owned()));
+        test_bitrate("", Err("Invalid bitrate: ".to_owned()));
+        test_bitrate("1 Kbps", Err("Invalid bitrate: 1 Kbps".to_owned()));
+        test_bitrate("1 Kbps", Err("Invalid bitrate: 1 Kbps".to_owned()));
+        test_bitrate("1Kbps", Err("Invalid bitrate: 1Kbps".to_owned()));
+    }
+}
+
+fn list(client: EdgeClient) {
     let inputs = client.list_inputs().unwrap();
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
@@ -44,7 +525,7 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn list_wide(client: EdgeClient) {
+fn list_wide(client: EdgeClient) {
     let inputs = client.list_inputs().unwrap();
     let mut groups = BTreeMap::new();
     let mut group_list = client.list_groups().unwrap();
@@ -104,7 +585,7 @@ pub fn list_wide(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn show(client: EdgeClient, name: &str) {
+fn show(client: EdgeClient, name: &str) {
     let inputs = client.find_inputs(name);
     let inputs = match inputs {
         Ok(inputs) => inputs,
@@ -152,19 +633,19 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
-pub struct NewInput {
+struct NewInput {
     pub name: String,
     pub thumbnails: ThumbnailMode,
     pub mode: NewInputMode,
 }
 
-pub enum ThumbnailMode {
+enum ThumbnailMode {
     Core,
     Edge,
     None,
 }
 
-pub enum NewInputMode {
+enum NewInputMode {
     Rtp(NewRtpInputMode),
     Udp(NewUdpInputMode),
     Sdi(NewSdiInputMode),
@@ -174,7 +655,7 @@ pub enum NewInputMode {
     Derived(NewDerivedInputMode),
 }
 
-pub struct NewRtpInputMode {
+struct NewRtpInputMode {
     pub appliance: String,
     pub interface: String,
     pub port: u16,
@@ -182,20 +663,20 @@ pub struct NewRtpInputMode {
     pub multicast_address: Option<String>,
 }
 
-pub struct NewUdpInputMode {
+struct NewUdpInputMode {
     pub appliance: String,
     pub interface: String,
     pub port: u16,
     pub multicast_address: Option<String>,
 }
 
-pub struct NewRistInputMode {
+struct NewRistInputMode {
     pub appliance: String,
     pub interface: String,
     pub port: u16,
 }
 
-pub enum NewSrtInputMode {
+enum NewSrtInputMode {
     Caller {
         appliance: String,
         interface: String,
@@ -209,35 +690,35 @@ pub enum NewSrtInputMode {
     },
 }
 
-pub struct NewSdiInputMode {
+struct NewSdiInputMode {
     pub appliance: String,
     pub interface: String,
 }
 
-pub struct NewGeneratorInputMode {
+struct NewGeneratorInputMode {
     pub appliance: String,
     pub bitrate: Bitrate,
 }
 
-pub struct NewDerivedInputMode {
+struct NewDerivedInputMode {
     pub parent: String,
     pub pid_rules: Vec<PIDRule>,
 }
 
 #[derive(Debug)]
-pub enum PIDRule {
+enum PIDRule {
     Map(u16, u16),
     Delete(u16),
     SetNull(u16),
 }
 
 #[derive(Clone)]
-pub enum Bitrate {
+enum Bitrate {
     Vbr,
     Cbr(u64),
 }
 
-pub fn create(client: EdgeClient, new_input: NewInput) {
+fn create(client: EdgeClient, new_input: NewInput) {
     let ports = match new_input.mode {
         NewInputMode::Rtp(ref rtp) => {
             let interface = get_physical_port(&client, &rtp.appliance, &rtp.interface);
@@ -453,7 +934,7 @@ fn get_physical_port(
     }
 }
 
-pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
     let inputs = client.find_inputs(name).context("Failed to list inputs")?;
     if inputs.is_empty() {
         return Err(anyhow!("Input not found"));

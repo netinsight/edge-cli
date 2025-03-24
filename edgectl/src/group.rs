@@ -1,10 +1,76 @@
 use std::process;
 
+use clap::{Arg, ArgMatches, Command};
 use tabled::{builder::Builder, settings::Style};
 
-use crate::edge::{EdgeClient, Group, NewGroup};
+use crate::edge::{new_client, EdgeClient, Group, NewGroup};
 
-pub fn list(client: EdgeClient) {
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("group")
+        .about("Manage groups")
+        .subcommand_required(true)
+        .subcommand(Command::new("list"))
+        .subcommand(
+            Command::new("show").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The group name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("create").arg(Arg::new("name").required(true).help("The group name")),
+        )
+        .subcommand(
+            Command::new("delete").arg(Arg::new("name").required(true).help("The group name")),
+        )
+        .subcommand(
+            Command::new("core-secret").arg(Arg::new("name").required(true).help("The group name")),
+        )
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", _)) | None => {
+            let client = new_client();
+            list(client)
+        }
+        Some(("show", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Group name is mandatory");
+            show(client, name)
+        }
+        Some(("core-secret", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Group name is mandatory");
+            core_secret(client, name)
+        }
+        Some(("create", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Group name is mandatory");
+            create(client, name)
+        }
+        Some(("delete", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("Group name is mandatory");
+            delete(client, name)
+        }
+        _ => unreachable!("subcommand_required prevents `None` or other options"),
+    }
+}
+
+fn list(client: EdgeClient) {
     let groups = client.list_groups().expect("Failed to fetch group list");
 
     let mut builder = Builder::default();
@@ -19,7 +85,7 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn show(client: EdgeClient, name: &str) {
+fn show(client: EdgeClient, name: &str) {
     let groups = client.find_groups(name).expect("Failed to find groups");
     if groups.is_empty() {
         println!("No such group: {}", name);
@@ -56,7 +122,7 @@ pub(crate) fn core_secret(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn create(client: EdgeClient, name: &str) {
+fn create(client: EdgeClient, name: &str) {
     match client.create_group(NewGroup {
         name: name.to_owned(),
         appliance_secret: uuid::Uuid::new_v4().to_string(),
@@ -75,7 +141,7 @@ pub fn create(client: EdgeClient, name: &str) {
     }
 }
 
-pub fn delete(client: EdgeClient, name: &str) {
+fn delete(client: EdgeClient, name: &str) {
     let groups = match client.find_groups(name) {
         Ok(groups) => groups,
         Err(e) => {

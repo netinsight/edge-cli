@@ -3,13 +3,360 @@ use std::fmt;
 use std::process;
 
 use anyhow::{anyhow, Context};
+use clap::{Arg, ArgMatches, Command};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{
-    EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
+    new_client, EdgeClient, Group, Input, Output, OutputAdminStatus, OutputHealthState, OutputPort,
     OutputPortFec, RistOutputPort, RtpOutputPort, SrtCallerOutputPort, SrtKeylen,
     SrtListenerOutputPort, SrtOutputPort, SrtRateLimiting, UdpOutputPort, ZixiOutputPort,
 };
+
+pub(crate) fn subcommand() -> clap::Command {
+    Command::new("output")
+        .about("Manage outputs")
+        .subcommand_required(true)
+        .subcommand(
+            Command::new("list").arg(
+                Arg::new("output")
+                    .long("output")
+                    .short('o')
+                    .value_parser(["short", "wide"])
+                    .default_value("short")
+                    .help("Change the output format"),
+            ),
+        )
+        .subcommand(
+            Command::new("show").arg(
+                Arg::new("name")
+                    .required(true)
+                    .help("The output name to show details for"),
+            ),
+        )
+        .subcommand(
+            Command::new("create")
+                .arg(
+                    Arg::new("name")
+                        .required(true)
+                        .help("The name of the new output"),
+                )
+                .arg(
+                    Arg::new("appliance")
+                        .short('a')
+                        .long("appliance")
+                        .required(true)
+                        .help("The appliance to create the input on"),
+                )
+                .arg(
+                    Arg::new("mode")
+                        .short('m')
+                        .long("mode")
+                        .required(true)
+                        .value_parser(clap::builder::PossibleValuesParser::new([
+                            "rtp", "udp", "sdi", "srt", "rist",
+                        ]))
+                        .help("The input mode"),
+                )
+                .arg(
+                    Arg::new("interface")
+                        .long("interface")
+                        .required(true)
+                        .help("The interface on the appliance to create the input on"),
+                )
+                .arg(
+                    Arg::new("input")
+                        .long("input")
+                        .required(true)
+                        .help("The input to send to the output"),
+                )
+                .arg(
+                    Arg::new("destination")
+                        .short('d')
+                        .long("dest")
+                        .required(false)
+                        .help("The destination to send the output to in format ip:port, e.g. 198.51.100.12:4000"),
+                )
+                .arg(
+                    Arg::new("port")
+                        .long("port")
+                        .required(false)
+                        .value_parser(clap::value_parser!(u16).range(1..))
+                        .help("The port to listen on. Only applicable for SRT listeners"),
+                )
+                .arg(
+                    Arg::new("source")
+                        .long("source")
+                        .help("The source IP address. Applicable for UDP and RTP."),
+                )
+                .arg(
+                    Arg::new("fec")
+                        .long("fec")
+                        .value_parser(["1D", "2D"])
+                        .required(false)
+                        .help("Enable FEC for RTP outputs"),
+                )
+                .arg(
+                    Arg::new("fec-rows")
+                        .long("fec-rows")
+                        .value_parser(clap::value_parser!(u8).range(4..20))
+                        .required(false)
+                        .help("FEC rows"),
+                )
+                .arg(
+                    Arg::new("fec-cols")
+                        .long("fec-cols")
+                        .value_parser(clap::value_parser!(u8).range(1..20))
+                        .required(false)
+                        .help("FEC columns"),
+                ).arg(
+                    Arg::new("caller")
+                        .long("caller")
+                        .num_args(0)
+                        .help("Use an SRT caller. Only applicable for SRT outputs."),
+                ).arg(
+                    Arg::new("listener")
+                        .long("listener")
+                        .num_args(0)
+                        .help("Use an SRT listener. Only applicable for SRT outputs."),
+                ).arg(
+                    Arg::new("rendezvous")
+                        .long("rendezvous")
+                        .num_args(0)
+                        .help("Use an SRT rendezvous. Only applicable for SRT outputs."),
+                ),
+        )
+        .subcommand(
+            Command::new("delete").arg(
+                Arg::new("name")
+                    .required(true)
+                    .num_args(1..)
+                    .help("The name of the outputs to remove"),
+            ),
+        )
+}
+
+pub(crate) fn run(subcmd: &ArgMatches) {
+    match subcmd.subcommand() {
+        Some(("list", args)) => {
+            let client = new_client();
+            match args.get_one::<String>("output").map(|s| s.as_str()) {
+                Some("wide") => list_wide(client),
+                _ => list(client),
+            };
+        }
+        Some(("show", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("output name should not be None");
+
+            show(client, name);
+        }
+        Some(("create", args)) => {
+            let client = new_client();
+            let name = args
+                .get_one::<String>("name")
+                .map(|s| s.as_str())
+                .expect("name is required");
+            let appliance = args
+                .get_one::<String>("appliance")
+                .map(|s| s.as_str())
+                .expect("appliance is required");
+            let mode = args
+                .get_one::<String>("mode")
+                .map(|s| s.as_str())
+                .expect("mode is required");
+            let dest = args.get_one::<String>("destination").map(|s| s.as_str());
+            let interface = args
+                .get_one::<String>("interface")
+                .map(|s| s.as_str())
+                .expect("interface is required");
+            let input = args
+                .get_one::<String>("input")
+                .map(|s| s.as_str())
+                .expect("input is required");
+
+            let source = args.get_one::<String>("source").cloned();
+
+            if args.get_one::<String>("fec").is_some() && mode != "rtp" {
+                eprintln!("The --fec argument is only supported for --mode rtp");
+                process::exit(1);
+            }
+
+            if source.is_some() {
+                match mode {
+                    "rtp" | "udp" | "rist" => {}
+                    _ => {
+                        eprintln!("The --source flag is only supported for RTP and UDP outputs");
+                        process::exit(1);
+                    }
+                }
+            }
+
+            let mode = match mode {
+                "rtp" => {
+                    let dest = match dest {
+                        Some(d) => d,
+                        None => {
+                            eprintln!("Dest is required for UDP outputs");
+                            process::exit(1);
+                        }
+                    };
+                    let address = dest.split(':').next().expect("dest address is missing");
+                    let port = dest
+                        .split(':')
+                        .last()
+                        .expect("Port number is required for --dest")
+                        .parse::<u16>()
+                        .expect("port needs to be a number between 0 and 65535");
+
+                    let fec = args.get_one::<String>("fec").map(|fec| {
+                            match (args.get_one::<u8>("fec-rows"),args.get_one::<u8>("fec-cols")) {
+                                (Some(rows), Some(cols)) => Fec {
+                                    mode: match fec.as_ref() {
+                                        "1D" => FecMode::OneD,
+                                        "2D" => FecMode::TwoD,
+                                        // clap ensures only 1D or 2D are possible values
+                                        _ => panic!("Invalid FEC mode. This is bug"),
+                                    },
+                                    rows: *rows,
+                                    cols: *cols,
+                                },
+                                _ =>  {
+                                    eprintln!("The --fec argument requires the --fec-rows and --fec-cols arguments");
+                                    process::exit(1);
+                                }
+                            }
+                        });
+
+                    NewOutputMode::Rtp(NewRtpOutputMode {
+                        address: address.to_owned(),
+                        port,
+                        fec,
+                        source_addr: source,
+                    })
+                }
+                "udp" => {
+                    let dest = match dest {
+                        Some(d) => d,
+                        None => {
+                            eprintln!("Dest is required for UDP outputs");
+                            process::exit(1);
+                        }
+                    };
+                    let address = dest.split(':').next().expect("dest address is missing");
+                    let port = dest
+                        .split(':')
+                        .last()
+                        .expect("Port number is required for --dest")
+                        .parse::<u16>()
+                        .expect("port needs to be a number between 0 and 65535");
+                    NewOutputMode::Udp(NewUdpOutputMode {
+                        address: address.to_owned(),
+                        port,
+                        source_addr: source,
+                    })
+                }
+                "srt" => {
+                    if args.get_flag("caller") {
+                        let dest = match args.get_one::<String>("destination") {
+                            Some(d) => d,
+                            None => {
+                                eprintln!("Dest is required for SRT caller outputs");
+                                process::exit(1);
+                            }
+                        };
+                        let address = dest.split(':').next().expect("dest address is missing");
+                        let port = dest
+                            .split(':')
+                            .last()
+                            .expect("Port number is required for --dest")
+                            .parse::<u16>()
+                            .expect("port needs to be a number between 0 and 65535");
+
+                        NewOutputMode::Srt(NewSrtOutputMode::Caller {
+                            address: address.to_owned(),
+                            port,
+                        })
+                    } else if args.get_flag("rendezvous") {
+                        eprintln!("--rendezvous is not yet implemented");
+                        process::exit(1);
+                    } else if args.get_flag("listener") {
+                        let port = match args.get_one::<u16>("port") {
+                            Some(port) => port,
+                            None => {
+                                eprintln!("--port is required for srt listener outputs");
+                                process::exit(1);
+                            }
+                        };
+                        NewOutputMode::Srt(NewSrtOutputMode::Listener { port: *port })
+                    } else {
+                        eprintln!("Need to specify either --caller, --listener or --rendezvous for SRT output");
+                        process::exit(1);
+                    }
+                }
+                "rist" => {
+                    let dest = match dest {
+                        Some(d) => d,
+                        None => {
+                            eprintln!("Dest is required for RIST outputs");
+                            process::exit(1);
+                        }
+                    };
+                    let address = dest.split(':').next().expect("dest address is missing");
+                    let port = dest
+                        .split(':')
+                        .last()
+                        .expect("Port number is required for --dest")
+                        .parse::<u16>()
+                        .expect("port needs to be a number between 0 and 65535");
+                    NewOutputMode::Rist(NewRistOutputMode {
+                        address: address.to_owned(),
+                        port,
+                        source_addr: source,
+                    })
+                }
+                e => {
+                    eprintln!("Invalid mode: {}", e);
+                    process::exit(1);
+                }
+            };
+
+            create(
+                client,
+                NewOutput {
+                    name: name.to_owned(),
+                    appliance: appliance.to_owned(),
+                    interface: interface.to_owned(),
+                    input: input.to_owned(),
+                    mode,
+                },
+            )
+        }
+        Some(("delete", args)) => {
+            let client = new_client();
+            let mut failed = false;
+            for name in args
+                .get_many::<String>("name")
+                .expect("Output name is mandatory")
+            {
+                if let Err(e) = delete(&client, name) {
+                    eprintln!("Failed to delete output {}: {}", name, e);
+                    failed = true;
+                }
+            }
+            if failed {
+                process::exit(1);
+            }
+        }
+        Some((cmd, _)) => {
+            eprintln!("Command output {cmd} is not yet implemented");
+            process::exit(1);
+        }
+        None => unreachable!("subcommand_required prevents `None`"),
+    }
+}
 
 impl fmt::Display for OutputHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -48,7 +395,7 @@ impl Output {
     }
 }
 
-pub fn list(client: EdgeClient) {
+fn list(client: EdgeClient) {
     let outputs = client.list_outputs().expect("Failed to list outputs");
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
@@ -63,7 +410,7 @@ pub fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn list_wide(client: EdgeClient) {
+fn list_wide(client: EdgeClient) {
     let outputs = client.list_outputs().expect("Failed to list outputs");
     let mut builder = Builder::default();
     builder.push_record([
@@ -144,7 +491,7 @@ pub fn list_wide(client: EdgeClient) {
     println!("{}", table)
 }
 
-pub fn show(client: EdgeClient, name: &str) {
+fn show(client: EdgeClient, name: &str) {
     let outputs = client.find_outputs(name);
     let outputs = match outputs {
         Ok(outputs) => outputs,
@@ -330,20 +677,20 @@ pub fn show(client: EdgeClient, name: &str) {
     }
 }
 
-pub enum NewOutputMode {
+enum NewOutputMode {
     Udp(NewUdpOutputMode),
     Rtp(NewRtpOutputMode),
     Srt(NewSrtOutputMode),
     Rist(NewRistOutputMode),
 }
 
-pub struct NewUdpOutputMode {
+struct NewUdpOutputMode {
     pub address: String,
     pub port: u16,
     pub source_addr: Option<String>,
 }
 
-pub struct NewRtpOutputMode {
+struct NewRtpOutputMode {
     pub address: String,
     pub port: u16,
     pub fec: Option<Fec>,
@@ -351,30 +698,30 @@ pub struct NewRtpOutputMode {
 }
 
 #[derive(Clone)]
-pub struct Fec {
+struct Fec {
     pub mode: FecMode,
     pub rows: u8,
     pub cols: u8,
 }
 
 #[derive(Clone)]
-pub enum FecMode {
+enum FecMode {
     OneD, // 1D
     TwoD, // 2D
 }
 
-pub enum NewSrtOutputMode {
+enum NewSrtOutputMode {
     Listener { port: u16 },
     Caller { address: String, port: u16 },
 }
 
-pub struct NewRistOutputMode {
+struct NewRistOutputMode {
     pub address: String,
     pub port: u16,
     pub source_addr: Option<String>,
 }
 
-pub struct NewOutput {
+struct NewOutput {
     pub name: String,
     pub appliance: String,
     pub interface: String,
@@ -382,7 +729,7 @@ pub struct NewOutput {
     pub mode: NewOutputMode,
 }
 
-pub fn create(client: EdgeClient, new_output: NewOutput) {
+fn create(client: EdgeClient, new_output: NewOutput) {
     let appl = match client.find_appliances(&new_output.appliance) {
         Ok(appls) if appls.is_empty() => {
             println!("Could not find appliance {}", new_output.appliance);
@@ -516,7 +863,7 @@ pub fn create(client: EdgeClient, new_output: NewOutput) {
     }
 }
 
-pub fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
+fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
     let outputs = client
         .find_outputs(name)
         .context("Failed to list outputs")?;
