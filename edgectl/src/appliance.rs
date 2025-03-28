@@ -202,7 +202,11 @@ fn show(client: EdgeClient, name: &str) {
         println!("Group:                {}", group_name);
         println!(
             "Version (control):    image={}, software={}",
-            appliance.version.control_image_version, appliance.version.control_software_version
+            appliance
+                .version
+                .control_image_version
+                .unwrap_or("unknown".to_owned()),
+            appliance.version.control_software_version
         );
         println!(
             "Version (data):       image={}, software={}",
