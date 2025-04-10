@@ -7,6 +7,7 @@ mod kubernetes;
 mod node;
 mod output;
 mod region;
+mod settings;
 mod tunnels;
 
 use std::{env, process};
@@ -26,6 +27,7 @@ fn main() {
         .subcommand(region::subcommand())
         .subcommand(node::subcommand())
         .subcommand(tunnels::subcommand())
+        .subcommand(settings::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
         .get_matches();
 
@@ -37,6 +39,7 @@ fn main() {
         Some(("region", subcmd)) => region::run(subcmd),
         Some(("node", subcmd)) => node::run(subcmd),
         Some(("tunnel", subcmd)) => tunnels::run(subcmd),
+        Some(("settings", subcmd)) => settings::run(subcmd),
         Some(("build-info", _)) => {
             let client = EdgeClient::with_url(
                 env::var("EDGE_URL")

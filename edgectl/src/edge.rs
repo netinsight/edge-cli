@@ -1046,6 +1046,95 @@ impl<'de> Deserialize<'de> for Product {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobalSettings {
+    pub log_level: LogLevel,
+    pub va_update_url: String,
+    pub default_delay: u32,
+    pub default_broadcast_standard: BroadcastStandard,
+    pub default_handover_method: HandoverMethod,
+    pub zixi_zec_key: Option<String>,
+    pub zixi_receiver_key: Option<String>,
+    pub zixi_feeder_key: Option<String>,
+    pub ntp_server: String,
+    pub ntp_enabled: bool,
+    pub entitlements: serde_json::Value,
+    pub ssl_redirect_enabled: bool,
+    pub exp_features: serde_json::Value,
+    pub custom_tab_title: String,
+    pub alarm_notifications_enabled: bool,
+    pub sso: serde_json::Value,
+    pub ad_bucket_size_threshold: String,
+    pub backup: BackupConf,
+}
+
+#[derive(Debug)]
+pub enum LogLevel {
+    Fatal,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl<'de> Deserialize<'de> for LogLevel {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u8::deserialize(deserializer)?;
+        match value {
+            0 => Ok(Self::Fatal),
+            1 => Ok(Self::Error),
+            2 => Ok(Self::Warn),
+            3 => Ok(Self::Info),
+            4 => Ok(Self::Debug),
+            5 => Ok(Self::Trace),
+            _ => Err(D::Error::unknown_variant(
+                &value.to_string(),
+                &["0", "1", "2", "3", "4", "5"],
+            )),
+        }
+    }
+}
+
+impl Serialize for LogLevel {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Fatal => serializer.serialize_u8(0),
+            Self::Error => serializer.serialize_u8(1),
+            Self::Warn => serializer.serialize_u8(2),
+            Self::Info => serializer.serialize_u8(3),
+            Self::Debug => serializer.serialize_u8(4),
+            Self::Trace => serializer.serialize_u8(5),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum BroadcastStandard {
+    Dvb,
+    Atsc,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum HandoverMethod {
+    Udp,
+    Unix,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct BackupConf {
+    pub external_s3: Option<serde_json::Value>,
+}
+
 #[derive(Serialize)]
 struct EdgeQuery<T: Serialize> {
     filter: T,
@@ -1691,5 +1780,25 @@ impl EdgeClient {
             .send()?;
 
         Ok(res.json::<BuildInfo>()?)
+    }
+
+    pub fn global_settings(&self) -> Result<GlobalSettings, EdgeError> {
+        let res = self
+            .client
+            .get(format!(r#"{}/api/globalsettings"#, self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<GlobalSettings>()?)
+    }
+
+    pub fn set_global_settings(&self, settings: GlobalSettings) -> Result<(), EdgeError> {
+        self.client
+            .put(format!("{}/api/globalsettings", self.url))
+            .header("content-type", "application/json")
+            .json(&settings)
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
     }
 }
