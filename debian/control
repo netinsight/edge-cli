@@ -1,0 +1,5 @@
+Package: edgectl
+Architecture: all
+Maintainer: linus <linus.wallgren@netinsight.net>
+Depends:
+Description: A command line interface for Nimbra Edge
