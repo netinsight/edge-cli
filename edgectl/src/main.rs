@@ -1,5 +1,7 @@
 mod appliance;
 mod buildinfo;
+mod cli;
+mod completions;
 mod edge;
 mod group;
 mod input;
@@ -12,24 +14,10 @@ mod tunnels;
 
 use std::{env, process};
 
-use clap::Command;
-
 use edge::EdgeClient;
 
 fn main() {
-    let matches = Command::new("edgectl")
-        .about("Nimbra Edge CLI")
-        .subcommand_required(true)
-        .subcommand(input::subcommand())
-        .subcommand(output::subcommand())
-        .subcommand(appliance::subcommand())
-        .subcommand(group::subcommand())
-        .subcommand(region::subcommand())
-        .subcommand(node::subcommand())
-        .subcommand(tunnels::subcommand())
-        .subcommand(settings::subcommand())
-        .subcommand(Command::new("build-info").about("Show build information for installation"))
-        .get_matches();
+    let matches = cli::build().get_matches();
 
     match matches.subcommand() {
         Some(("input", subcmd)) => input::run(subcmd),
@@ -40,6 +28,7 @@ fn main() {
         Some(("node", subcmd)) => node::run(subcmd),
         Some(("tunnel", subcmd)) => tunnels::run(subcmd),
         Some(("settings", subcmd)) => settings::run(subcmd),
+        Some(("completion", subcmd)) => completions::run(subcmd),
         Some(("build-info", _)) => {
             let client = EdgeClient::with_url(
                 env::var("EDGE_URL")
