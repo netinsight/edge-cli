@@ -16,6 +16,8 @@ $(OUT_DIR):
 $(PACKAGE_DIR): \
 	$(PACKAGE_DIR)/DEBIAN \
 	$(PACKAGE_DIR)/usr/bin/$(NAME) \
+	$(PACKAGE_DIR)/usr/share/bash-completion/completions/$(NAME) \
+	$(PACKAGE_DIR)/usr/local/share/zsh/site-functions/$(NAME) \
 
 	@touch "$@"
 
@@ -42,6 +44,14 @@ edgectl/target/release/edgectl: $(shell find edgectl/src) edgectl/Cargo.toml edg
 $(PACKAGE_DIR)/usr/lib/$(NAME)/%: src/%
 	@mkdir -p "$(dir $@)"
 	cp -p "$<" "$@"
+
+$(PACKAGE_DIR)/usr/share/bash-completion/completions/$(NAME): $(PACKAGE_DIR)/usr/bin/$(NAME)
+	@mkdir -p "$(dir $@)"
+	$< completion bash > $@
+
+$(PACKAGE_DIR)/usr/local/share/zsh/site-functions/$(NAME): $(PACKAGE_DIR)/usr/bin/$(NAME)
+	@mkdir -p "$(dir $@)"
+	$< completion zsh > $@
 
 $(PACKAGE_DIR).deb: $(PACKAGE_DIR)
 	fakeroot dpkg-deb --build "${PACKAGE_DIR}"
