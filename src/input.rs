@@ -561,7 +561,10 @@ fn list_wide(client: EdgeClient) -> anyhow::Result<()> {
                 .unwrap_or("?".to_owned()),
             input.admin_status.to_string(),
             input.buffer_size.to_string(),
-            input.preview_settings.mode,
+            input
+                .preview_settings
+                .map(|p| p.mode)
+                .unwrap_or("unknown".to_owned()),
             input.thumbnail_mode.to_string(),
             if input.tr101290_enabled {
                 "on".to_owned()
@@ -607,7 +610,13 @@ fn show(client: EdgeClient, name: &str) {
         println!("Admin status:   {}", input.admin_status);
         println!("Owner:          {}", group_name);
         println!("Buffer:         {}", input.buffer_size);
-        println!("Preview:        {}", input.preview_settings.mode);
+        println!(
+            "Preview:        {}",
+            input
+                .preview_settings
+                .map(|p| p.mode)
+                .unwrap_or("unknown".to_owned())
+        );
         println!("Thumbnail mode: {}", input.thumbnail_mode);
         println!("TR 101 290:     {}", input.tr101290_enabled);
         println!(

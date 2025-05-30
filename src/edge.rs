@@ -134,7 +134,7 @@ pub struct Input {
     // channel_group: u8,
     pub created_at: String, // really a date
     pub updated_at: String, // really a date
-    pub preview_settings: PreviewSettings,
+    pub preview_settings: Option<PreviewSettings>,
     pub thumbnail_mode: ThumbnailMode, // 0,1 or 2
     pub tr101290_enabled: bool,
     pub appliances: Vec<InputAppliance>,
