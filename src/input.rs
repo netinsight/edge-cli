@@ -543,7 +543,6 @@ fn list_wide(client: EdgeClient) {
         "Preview",
         "Thumbnails",
         "TR 101 290",
-        "can subscribe",
         "Appliances",
         "Health",
     ]);
@@ -565,7 +564,6 @@ fn list_wide(client: EdgeClient) {
             } else {
                 "off".to_owned()
             },
-            input.can_subscribe.to_string(),
             input
                 .appliances
                 .into_iter()
@@ -607,7 +605,6 @@ fn show(client: EdgeClient, name: &str) {
         println!("Preview:        {}", input.preview_settings.mode);
         println!("Thumbnail mode: {}", input.thumbnail_mode);
         println!("TR 101 290:     {}", input.tr101290_enabled);
-        println!("Can subscribe:  {}", input.can_subscribe);
         println!(
             "Appliances:     {}",
             input

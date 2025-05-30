@@ -137,7 +137,6 @@ pub struct Input {
     pub preview_settings: PreviewSettings,
     pub thumbnail_mode: ThumbnailMode, // 0,1 or 2
     pub tr101290_enabled: bool,
-    pub can_subscribe: bool,
     pub appliances: Vec<InputAppliance>,
     pub health: InputHealth,
     pub ports: Option<Vec<InputPort>>,
