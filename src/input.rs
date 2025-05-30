@@ -187,10 +187,13 @@ pub(crate) fn run(subcmd: &ArgMatches) {
     match subcmd.subcommand() {
         Some(("list", args)) => {
             let client = new_client();
-            match args.get_one::<String>("output").map(|s| s.as_str()) {
+            if let Err(e) = match args.get_one::<String>("output").map(|s| s.as_str()) {
                 Some("wide") => list_wide(client),
                 _ => list(client),
-            };
+            } {
+                eprintln!("Failed to list inputs: {}", e);
+                process::exit(1);
+            }
         }
         Some(("show", args)) => {
             let client = new_client();
@@ -503,8 +506,8 @@ mod tests {
     }
 }
 
-fn list(client: EdgeClient) {
-    let inputs = client.list_inputs().unwrap();
+fn list(client: EdgeClient) -> anyhow::Result<()> {
+    let inputs = client.list_inputs().context("Failed to list inputs")?;
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
 
@@ -522,13 +525,14 @@ fn list(client: EdgeClient) {
 
     let mut table = builder.build();
     table.with(Style::empty());
-    println!("{}", table)
+    println!("{}", table);
+    Ok(())
 }
 
-fn list_wide(client: EdgeClient) {
-    let inputs = client.list_inputs().unwrap();
+fn list_wide(client: EdgeClient) -> anyhow::Result<()> {
+    let inputs = client.list_inputs().context("Failed to list inputs")?;
     let mut groups = BTreeMap::new();
-    let mut group_list = client.list_groups().unwrap();
+    let mut group_list = client.list_groups().context("Failed to list groups")?;
     while let Some(group) = group_list.pop() {
         groups.insert(group.id.to_owned(), group);
     }
@@ -580,7 +584,8 @@ fn list_wide(client: EdgeClient) {
 
     let mut table = builder.build();
     table.with(Style::empty());
-    println!("{}", table)
+    println!("{}", table);
+    Ok(())
 }
 
 fn show(client: EdgeClient, name: &str) {
