@@ -10,7 +10,7 @@ clap = "4.5.39"
 reqwest = { version = "0.12.19", features = ["blocking", "json", "cookies"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.140"
-tabled = "0.19.0"
+tabled = "0.20.0"
 uuid = { version = "1.17.0", features = [ "v4" ] }
 openssl = { version = "0.10.73", features = ["vendored"] } # vendor openssl to enable static builds
 anyhow = "1.0.95"
