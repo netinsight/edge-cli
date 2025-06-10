@@ -191,7 +191,7 @@ pub(crate) fn run(subcmd: &ArgMatches) {
                 Some("wide") => list_wide(client),
                 _ => list(client),
             } {
-                eprintln!("Failed to list inputs: {}", e);
+                eprintln!("Failed to list inputs: {:?}", e);
                 process::exit(1);
             }
         }
@@ -507,7 +507,7 @@ mod tests {
 }
 
 fn list(client: EdgeClient) -> anyhow::Result<()> {
-    let inputs = client.list_inputs().context("Failed to list inputs")?;
+    let inputs = client.list_inputs().context("Failed to list edge inputs")?;
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
 
@@ -946,7 +946,7 @@ fn get_physical_port(
 }
 
 fn delete(client: &EdgeClient, name: &str) -> anyhow::Result<()> {
-    let inputs = client.find_inputs(name).context("Failed to list inputs")?;
+    let inputs = client.find_inputs(name).context("Failed to find inputs")?;
     if inputs.is_empty() {
         return Err(anyhow!("Input not found"));
     }
