@@ -14,4 +14,4 @@ tabled = "0.20.0"
 uuid = { version = "1.17.0", features = [ "v4" ] }
 openssl = { version = "0.10.73", features = ["vendored"] } # vendor openssl to enable static builds
 anyhow = "1.0.95"
-clap_complete = "4.5.52"
+clap_complete = "4.5.54"
