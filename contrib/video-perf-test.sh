@@ -21,7 +21,7 @@ fanout=1
 while [[ $# -gt 0 ]]; do
     case $1 in
         --disable-thumbnails)
-            input_extra_args+=("--disable-thumbnails")
+            input_extra_args+=("--thumbnail=none")
             shift
             ;;
         --fanout)
@@ -70,10 +70,9 @@ for appliance in "${generator_appliances[@]}"; do
     if ! grep -qw "Perftest-generator-$appliance" <<<"$inputs"; then
         edge input create "Perftest-generator-$appliance" \
             --appliance "$appliance" \
-            --interface lo \
             --mode generator \
             --bitrate "$bitrate" \
-            --disable-thumbnails
+            --thumbnail none
     fi
     if ! grep -qw "Perftest-generator-$appliance" <<<"$outputs"; then
         edge output create "Perftest-generator-$appliance" \
