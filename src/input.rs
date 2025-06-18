@@ -79,6 +79,13 @@ pub(crate) fn subcommand() -> clap::Command {
                         .short('i')
                         .long("interface")
                         .required(false)
+                        .required_if_eq_any([
+                            ("mode", "rtp"),
+                            ("mode", "udp"),
+                            ("mode", "srt"),
+                            ("mode", "rist"),
+                            ("mode", "sdi"),
+                        ])
                         .help("The interface on the appliance to create the input on"),
                 )
                 .arg(
