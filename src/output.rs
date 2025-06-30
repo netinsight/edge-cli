@@ -17,14 +17,23 @@ pub(crate) fn subcommand() -> clap::Command {
         .about("Manage outputs")
         .subcommand_required(true)
         .subcommand(
-            Command::new("list").arg(
-                Arg::new("output")
-                    .long("output")
-                    .short('o')
-                    .value_parser(["short", "wide"])
-                    .default_value("short")
-                    .help("Change the output format"),
-            ),
+            Command::new("list")
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .value_parser(["short", "wide"])
+                        .default_value("short")
+                        .help("Change the output format"),
+                )
+                .arg(
+                    Arg::new("limit")
+                        .long("limit")
+                        .short('l')
+                        .value_parser(clap::value_parser!(u32).range(1..=10000))
+                        .default_value("500")
+                        .help("Maximum number of outputs to return"),
+                ),
         )
         .subcommand(
             Command::new("show").arg(
@@ -139,9 +148,10 @@ pub(crate) fn run(subcmd: &ArgMatches) {
     match subcmd.subcommand() {
         Some(("list", args)) => {
             let client = new_client();
+            let limit = *args.get_one::<u32>("limit").unwrap_or(&500);
             match args.get_one::<String>("output").map(|s| s.as_str()) {
-                Some("wide") => list_wide(client),
-                _ => list(client),
+                Some("wide") => list_wide(client, limit),
+                _ => list(client, limit),
             };
         }
         Some(("show", args)) => {
@@ -395,8 +405,8 @@ impl Output {
     }
 }
 
-fn list(client: EdgeClient) {
-    let outputs = client.list_outputs().expect("Failed to list outputs");
+fn list(client: EdgeClient, limit: u32) {
+    let outputs = client.list_outputs(limit).expect("Failed to list outputs");
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
 
@@ -410,8 +420,8 @@ fn list(client: EdgeClient) {
     println!("{}", table)
 }
 
-fn list_wide(client: EdgeClient) {
-    let outputs = client.list_outputs().expect("Failed to list outputs");
+fn list_wide(client: EdgeClient, limit: u32) {
+    let outputs = client.list_outputs(limit).expect("Failed to list outputs");
     let mut builder = Builder::default();
     builder.push_record([
         "ID",

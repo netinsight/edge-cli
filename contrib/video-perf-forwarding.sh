@@ -7,7 +7,7 @@
 # This test does not involve a video node in the traditional sense because the
 # stream isn't routed via a core node.
 
-bitrate="$((20 * 1000000))"
+bitrate="$((30 * 1000000))"
 test_appliance=dut
 protocol=srt
 fanout=1
@@ -51,9 +51,9 @@ set -euo pipefail
 generator_appliance=$(edge appliance list | awk '$3 == "edgeConnect" && $1 ~ /input/ { print $1 }' | sort | head)
 output_appliance=$(edge appliance list | awk '$3 == "edgeConnect" && $1 ~ /output/ { print $1 }' | sort | head)
 
-generator_interface=$(edge appliance show "$generator_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name) }')
-read -r output_interface output_ip <<< "$(edge appliance show "$output_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name, $3) }')"
-read -r test_interface test_ip <<< "$(edge appliance show "$test_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name, $3) }')"
+generator_interface=$(edge appliance show "$generator_appliance" | awk '/Name:/ { name=$3 } /Address:.*\.201\./ && name != "lo" { print(name); exit }')
+read -r output_interface output_ip <<< "$(edge appliance show "$output_appliance" | awk '/Name:/ { name=$3 } /Address:.*\.201\./ && name != "lo" { print(name, $3); exit }')"
+read -r test_interface test_ip <<< "$(edge appliance show "$test_appliance" | awk '/Name:/ { name=$3 } /Address:.*\.201\./ && name != "lo" { print(name, $3); exit }')"
 
 cat >&2 <<EOF
 Generator appliance:    ${generator_appliance}
@@ -61,8 +61,8 @@ Output appliance:       ${output_appliance}
 Test appliance:         ${test_appliance}
 EOF
 
-inputs="$(edge input list | awk '/^ID/ { next } { print $2 }')"
-outputs="$(edge output list | awk '/^ID/ { next } { print $2 }')"
+inputs="$(edge input list --limit 1000 | awk '/^ID/ { next } { print $2 }')"
+outputs="$(edge output list --limit 1000 | awk '/^ID/ { next } { print $2 }')"
 
 echo >&2 "Setting up generators"
 

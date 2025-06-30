@@ -744,6 +744,7 @@ pub struct RtpInputPort {
     pub fec: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multicast_address: Option<String>,
+    pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -778,6 +779,7 @@ pub enum SrtInputPort {
         local_port: u16,
         reduced_bitrate_detection: bool,
         unrecovered_packets_detection: bool,
+        whitelist_cidr_block: Option<Vec<String>>,
     },
     Rendezvous,
 }
@@ -789,6 +791,7 @@ pub struct RistInputPort {
     pub address: String,
     pub port: u16,
     pub profile: String, // can only be 'simple'
+    pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1335,7 +1338,7 @@ impl EdgeClient {
         Ok(res.json::<LoginResp>()?.user)
     }
 
-    pub fn list_inputs(&self) -> Result<Vec<Input>, reqwest::Error> {
+    pub fn list_inputs(&self, limit: u32) -> Result<Vec<Input>, reqwest::Error> {
         #[derive(Debug, Deserialize)]
         struct InputListResp {
             items: Vec<Input>,
@@ -1344,7 +1347,10 @@ impl EdgeClient {
 
         let res = self
             .client
-            .get(format!(r#"{}/api/input/"#, self.url,))
+            .get(format!(
+                r#"{}/api/input/?q={{"filter":{{}},"skip":0,"limit":{}}}"#,
+                self.url, limit
+            ))
             .header("content-type", "application/json")
             .send()?;
 
@@ -1408,7 +1414,7 @@ impl EdgeClient {
             .map(|_| ())
     }
 
-    pub fn list_outputs(&self) -> Result<Vec<Output>, EdgeError> {
+    pub fn list_outputs(&self, limit: u32) -> Result<Vec<Output>, EdgeError> {
         #[derive(Debug, Deserialize)]
         struct OutputListResp {
             items: Vec<Output>,
@@ -1417,7 +1423,10 @@ impl EdgeClient {
 
         let res = self
             .client
-            .get(format!(r#"{}/api/output/"#, self.url,))
+            .get(format!(
+                r#"{}/api/output/?q={{"filter":{{}},"skip":0,"limit":{}}}"#,
+                self.url, limit
+            ))
             .header("content-type", "application/json")
             .send()?
             .error_if_not_success()?;
