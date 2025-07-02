@@ -20,12 +20,21 @@ fanout=1
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --disable-thumbnails)
-            input_extra_args+=("--disable-thumbnails")
-            shift
+        --thumbnail)
+            if [[ "$2" == "none" || "$2" == "core" || "$2" == "edge" ]]; then
+                input_extra_args+=("--thumbnail=$2")
+                shift 2
+            else
+                echo "Error: --thumbnail must be one of: none, core, edge"
+                exit 1
+            fi
             ;;
         --fanout)
             fanout="$2"
+            shift 2
+            ;;
+        --bitrate)
+            bitrate=$(numfmt --from=auto "${2}")
             shift 2
             ;;
         -v | --verbose)
@@ -59,7 +68,7 @@ EOF
 # from edge-connect-input-edge-192-5 for example) of the appliance name
 # It might be possible to make this better by using the hostname field
 input_machines=("${input_appliances[@]%-*}")
-mapfile -t generator_appliances < <(printf "%s\n" "${input_machines[@]}" | sort -u)
+mapfile -t generator_appliances < <(printf "%s\n" "${input_machines[@]}" | sort -u | while read -r machine; do echo "${machine}-000"; done)
 
 inputs="$(edge input list | awk '/^ID/ { next } { print $2 }')"
 outputs="$(edge output list | awk '/^ID/ { next } { print $2 }')"
@@ -70,10 +79,9 @@ for appliance in "${generator_appliances[@]}"; do
     if ! grep -qw "Perftest-generator-$appliance" <<<"$inputs"; then
         edge input create "Perftest-generator-$appliance" \
             --appliance "$appliance" \
-            --interface lo \
             --mode generator \
             --bitrate "$bitrate" \
-            --disable-thumbnails
+            --thumbnail none
     fi
     if ! grep -qw "Perftest-generator-$appliance" <<<"$outputs"; then
         edge output create "Perftest-generator-$appliance" \

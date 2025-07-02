@@ -28,14 +28,23 @@ pub(crate) fn subcommand() -> clap::Command {
         .about("Manage inputs")
         .subcommand_required(true)
         .subcommand(
-            Command::new("list").arg(
-                Arg::new("output")
-                    .long("output")
-                    .short('o')
-                    .value_parser(["short", "wide"])
-                    .default_value("short")
-                    .help("Change the output format"),
-            ),
+            Command::new("list")
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .value_parser(["short", "wide"])
+                        .default_value("short")
+                        .help("Change the output format"),
+                )
+                .arg(
+                    Arg::new("limit")
+                        .long("limit")
+                        .short('l')
+                        .value_parser(clap::value_parser!(u32).range(1..=10000))
+                        .default_value("500")
+                        .help("Maximum number of inputs to return"),
+                ),
         )
         .subcommand(
             Command::new("show").arg(
@@ -79,6 +88,13 @@ pub(crate) fn subcommand() -> clap::Command {
                         .short('i')
                         .long("interface")
                         .required(false)
+                        .required_if_eq_any([
+                            ("mode", "rtp"),
+                            ("mode", "udp"),
+                            ("mode", "srt"),
+                            ("mode", "rist"),
+                            ("mode", "sdi"),
+                        ])
                         .help("The interface on the appliance to create the input on"),
                 )
                 .arg(
@@ -187,9 +203,10 @@ pub(crate) fn run(subcmd: &ArgMatches) {
     match subcmd.subcommand() {
         Some(("list", args)) => {
             let client = new_client();
+            let limit = *args.get_one::<u32>("limit").unwrap_or(&500);
             if let Err(e) = match args.get_one::<String>("output").map(|s| s.as_str()) {
-                Some("wide") => list_wide(client),
-                _ => list(client),
+                Some("wide") => list_wide(client, limit),
+                _ => list(client, limit),
             } {
                 eprintln!("Failed to list inputs: {:?}", e);
                 process::exit(1);
@@ -506,8 +523,10 @@ mod tests {
     }
 }
 
-fn list(client: EdgeClient) -> anyhow::Result<()> {
-    let inputs = client.list_inputs().context("Failed to list edge inputs")?;
+fn list(client: EdgeClient, limit: u32) -> anyhow::Result<()> {
+    let inputs = client
+        .list_inputs(limit)
+        .context("Failed to list edge inputs")?;
     let mut builder = Builder::default();
     builder.push_record(["ID", "Name", "Health"]);
 
@@ -529,8 +548,8 @@ fn list(client: EdgeClient) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn list_wide(client: EdgeClient) -> anyhow::Result<()> {
-    let inputs = client.list_inputs().context("Failed to list inputs")?;
+fn list_wide(client: EdgeClient, limit: u32) -> anyhow::Result<()> {
+    let inputs = client.list_inputs(limit).context("Failed to list inputs")?;
     let mut groups = BTreeMap::new();
     let mut group_list = client.list_groups().context("Failed to list groups")?;
     while let Some(group) = group_list.pop() {
@@ -745,6 +764,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 port: rtp.port,
                 fec: rtp.fec,
                 multicast_address: rtp.multicast_address.clone(),
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Udp(ref udp) => {
@@ -792,6 +812,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 latency: 120,
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Rist(NewRistInputMode {
@@ -810,6 +831,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                     .to_owned(),
                 port,
                 profile: "simple".to_owned(),
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Sdi(ref sdi) => {
