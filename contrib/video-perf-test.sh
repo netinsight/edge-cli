@@ -64,11 +64,22 @@ ${output_appliances[@]}
 EOF
 
 # Figure out which physical machines our edge-connect runs on
-# This is done by taking all unique values after remove then last suffix (-5
-# from edge-connect-input-edge-192-5 for example) of the appliance name
+# This is done by selecting one appliance per unique base machine name
+# The base name is everything before the last dash (e.g., edge-connect-input-edge-192 from edge-connect-input-edge-192-000)
+# We keep the full appliance name including the suffix
+#
 # It might be possible to make this better by using the hostname field
-input_machines=("${input_appliances[@]%-*}")
-mapfile -t generator_appliances < <(printf "%s\n" "${input_machines[@]}" | sort -u)
+declare -A seen_machines
+generator_appliances=()
+for appliance in "${input_appliances[@]}"; do
+    # Extract the base machine name (everything before the last dash)
+    base_machine="${appliance%-*}"
+    # If we haven't seen this base machine yet, add this appliance as the generator
+    if [[ -z "${seen_machines[$base_machine]}" ]]; then
+        seen_machines[$base_machine]=1
+        generator_appliances+=("$appliance")
+    fi
+done
 
 inputs="$(edge input list | awk '/^ID/ { next } { print $2 }')"
 outputs="$(edge output list | awk '/^ID/ { next } { print $2 }')"
