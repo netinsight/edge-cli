@@ -105,6 +105,12 @@ pub(crate) fn subcommand() -> clap::Command {
                         .value_parser(clap::value_parser!(u16).range(1..))
                         .action(clap::ArgAction::Set)
                         .required(false)
+                        .required_if_eq_any([
+                            ("mode", "rtp"),
+                            ("mode", "udp"),
+                            ("mode", "rist"),
+                            ("listener", "true"),
+                        ])
                         .help("The TCP or UDP port to listen to"),
                 )
                 .arg(
@@ -177,9 +183,17 @@ pub(crate) fn subcommand() -> clap::Command {
                         .num_args(0)
                         .help("Use an SRT rendezvous. Only applicable for SRT inputs."),
                 )
-                .arg(Arg::new("destination").long("dest").required(false).help(
-                    "The destination to for SRT callers format ip:port, e.g. 198.51.100.12:4000",
-                )),
+                .arg(Arg::new("destination")
+                    .long("dest")
+                    .required(false)
+                    .required_if_eq("caller", "true")
+                    .help("The destination to for SRT callers format ip:port, e.g. 198.51.100.12:4000"),
+                )
+                .group(
+                    clap::ArgGroup::new("srt_mode")
+                        .args(["caller", "listener", "rendezvous"])
+                        .required(false)
+                ),
         )
         .subcommand(
             Command::new("delete").arg(

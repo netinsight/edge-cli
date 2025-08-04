@@ -75,12 +75,19 @@ pub(crate) fn subcommand() -> clap::Command {
                         .short('d')
                         .long("dest")
                         .required(false)
+                        .required_if_eq_any([
+                            ("mode", "rtp"),
+                            ("mode", "udp"),
+                            ("mode", "rist"),
+                            ("caller", "true"),
+                        ])
                         .help("The destination to send the output to in format ip:port, e.g. 198.51.100.12:4000"),
                 )
                 .arg(
                     Arg::new("port")
                         .long("port")
                         .required(false)
+                        .required_if_eq("listener", "true")
                         .value_parser(clap::value_parser!(u16).range(1..))
                         .help("The port to listen on. Only applicable for SRT listeners"),
                 )
@@ -94,6 +101,7 @@ pub(crate) fn subcommand() -> clap::Command {
                         .long("fec")
                         .value_parser(["1D", "2D"])
                         .required(false)
+                        .requires_all(["fec-rows", "fec-cols"])
                         .help("Enable FEC for RTP outputs"),
                 )
                 .arg(
@@ -124,6 +132,11 @@ pub(crate) fn subcommand() -> clap::Command {
                         .long("rendezvous")
                         .num_args(0)
                         .help("Use an SRT rendezvous. Only applicable for SRT outputs."),
+                )
+                .group(
+                    clap::ArgGroup::new("srt_mode")
+                        .args(["caller", "listener", "rendezvous"])
+                        .required(false)
                 ),
         )
         .subcommand(
