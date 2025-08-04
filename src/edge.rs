@@ -744,6 +744,7 @@ pub struct RtpInputPort {
     pub fec: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multicast_address: Option<String>,
+    pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -778,6 +779,7 @@ pub enum SrtInputPort {
         local_port: u16,
         reduced_bitrate_detection: bool,
         unrecovered_packets_detection: bool,
+        whitelist_cidr_block: Option<Vec<String>>,
     },
     Rendezvous,
 }
@@ -789,6 +791,7 @@ pub struct RistInputPort {
     pub address: String,
     pub port: u16,
     pub profile: String, // can only be 'simple'
+    pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1343,13 +1346,32 @@ impl EdgeClient {
             // total: u32,
         }
 
-        let res = self
-            .client
-            .get(format!(r#"{}/api/input/"#, self.url,))
-            .header("content-type", "application/json")
-            .send()?;
+        let mut all_inputs = Vec::new();
+        let pagesize = 100;
+        let mut page = 1;
 
-        Ok(res.json::<InputListResp>()?.items)
+        loop {
+            let skip = (page - 1) * pagesize;
+            let res = self
+                .client
+                .get(format!(
+                    r#"{}/api/input/?q={{"filter":{{}},"skip":{},"limit":{}}}"#,
+                    self.url, skip, pagesize
+                ))
+                .header("content-type", "application/json")
+                .send()?;
+
+            let resp = res.json::<InputListResp>()?;
+            let items_count = resp.items.len();
+            all_inputs.extend(resp.items);
+
+            if items_count < pagesize as usize {
+                break;
+            }
+            page += 1;
+        }
+
+        Ok(all_inputs)
     }
 
     pub fn get_input(&self, id: &str) -> Result<Input, reqwest::Error> {
@@ -1416,14 +1438,33 @@ impl EdgeClient {
             // total: u32,
         }
 
-        let res = self
-            .client
-            .get(format!(r#"{}/api/output/"#, self.url,))
-            .header("content-type", "application/json")
-            .send()?
-            .error_if_not_success()?;
+        let mut all_outputs = Vec::new();
+        let pagesize = 100;
+        let mut page = 1;
 
-        Ok(res.json::<OutputListResp>()?.items)
+        loop {
+            let skip = (page - 1) * pagesize;
+            let res = self
+                .client
+                .get(format!(
+                    r#"{}/api/output/?q={{"filter":{{}},"skip":{},"limit":{}}}"#,
+                    self.url, skip, pagesize
+                ))
+                .header("content-type", "application/json")
+                .send()?
+                .error_if_not_success()?;
+
+            let resp = res.json::<OutputListResp>()?;
+            let items_count = resp.items.len();
+            all_outputs.extend(resp.items);
+
+            if items_count < pagesize as usize {
+                break;
+            }
+            page += 1;
+        }
+
+        Ok(all_outputs)
     }
 
     pub fn find_outputs(&self, name: &str) -> Result<Vec<Output>, reqwest::Error> {

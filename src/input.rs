@@ -28,14 +28,15 @@ pub(crate) fn subcommand() -> clap::Command {
         .about("Manage inputs")
         .subcommand_required(true)
         .subcommand(
-            Command::new("list").arg(
-                Arg::new("output")
-                    .long("output")
-                    .short('o')
-                    .value_parser(["short", "wide"])
-                    .default_value("short")
-                    .help("Change the output format"),
-            ),
+            Command::new("list")
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .value_parser(["short", "wide"])
+                        .default_value("short")
+                        .help("Change the output format"),
+                ),
         )
         .subcommand(
             Command::new("show").arg(
@@ -533,6 +534,7 @@ fn list(client: EdgeClient) -> anyhow::Result<()> {
     let mut table = builder.build();
     table.with(Style::empty());
     println!("{}", table);
+
     Ok(())
 }
 
@@ -595,6 +597,7 @@ fn list_wide(client: EdgeClient) -> anyhow::Result<()> {
     let mut table = builder.build();
     table.with(Style::empty());
     println!("{}", table);
+
     Ok(())
 }
 
@@ -752,6 +755,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 port: rtp.port,
                 fec: rtp.fec,
                 multicast_address: rtp.multicast_address.clone(),
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Udp(ref udp) => {
@@ -799,6 +803,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 latency: 120,
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Rist(NewRistInputMode {
@@ -817,6 +822,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                     .to_owned(),
                 port,
                 profile: "simple".to_owned(),
+                whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
             })]
         }
         NewInputMode::Sdi(ref sdi) => {

@@ -7,7 +7,7 @@
 # This test does not involve a video node in the traditional sense because the
 # stream isn't routed via a core node.
 
-bitrate="$((20 * 1000000))"
+bitrate="$((30 * 1000000))"
 test_appliance=dut
 protocol=srt
 fanout=1

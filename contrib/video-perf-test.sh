@@ -33,6 +33,10 @@ while [[ $# -gt 0 ]]; do
             fanout="$2"
             shift 2
             ;;
+        --bitrate)
+            bitrate=$(numfmt --from=auto "${2}")
+            shift 2
+            ;;
         -v | --verbose)
             shift
             set -x

@@ -17,14 +17,15 @@ pub(crate) fn subcommand() -> clap::Command {
         .about("Manage outputs")
         .subcommand_required(true)
         .subcommand(
-            Command::new("list").arg(
-                Arg::new("output")
-                    .long("output")
-                    .short('o')
-                    .value_parser(["short", "wide"])
-                    .default_value("short")
-                    .help("Change the output format"),
-            ),
+            Command::new("list")
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .value_parser(["short", "wide"])
+                        .default_value("short")
+                        .help("Change the output format"),
+                ),
         )
         .subcommand(
             Command::new("show").arg(
@@ -407,7 +408,7 @@ fn list(client: EdgeClient) {
 
     let mut table = builder.build();
     table.with(Style::empty());
-    println!("{}", table)
+    println!("{}", table);
 }
 
 fn list_wide(client: EdgeClient) {
@@ -488,7 +489,7 @@ fn list_wide(client: EdgeClient) {
 
     let mut table = builder.build();
     table.with(Style::empty());
-    println!("{}", table)
+    println!("{}", table);
 }
 
 fn show(client: EdgeClient, name: &str) {
