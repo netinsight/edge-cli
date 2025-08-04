@@ -1,6 +1,7 @@
 use crate::appliance;
 use crate::completions;
 use crate::group;
+use crate::health;
 use crate::input;
 use crate::node;
 use crate::output;
@@ -23,5 +24,6 @@ pub(crate) fn build() -> Command {
         .subcommand(tunnels::subcommand())
         .subcommand(settings::subcommand())
         .subcommand(completions::subcommand())
+        .subcommand(health::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
 }

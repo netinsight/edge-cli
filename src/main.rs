@@ -4,6 +4,7 @@ mod cli;
 mod completions;
 mod edge;
 mod group;
+mod health;
 mod input;
 mod kubernetes;
 mod node;
@@ -29,6 +30,7 @@ fn main() {
         Some(("tunnel", subcmd)) => tunnels::run(subcmd),
         Some(("settings", subcmd)) => settings::run(subcmd),
         Some(("completion", subcmd)) => completions::run(subcmd),
+        Some(("health", subcmd)) => health::run(subcmd),
         Some(("build-info", _)) => {
             let client = EdgeClient::with_url(
                 env::var("EDGE_URL")
