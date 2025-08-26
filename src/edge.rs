@@ -11,9 +11,11 @@ pub fn new_client() -> EdgeClient {
             .expect("missing environment variable: EDGE_URL")
             .as_ref(),
     );
+    let username = env::var("EDGE_USER").unwrap_or_else(|_| "admin".to_owned());
+    let password = env::var("EDGE_PASSWORD").expect("missing environment variable: EDGE_PASSWORD");
     if let Err(e) = client.login(
-        "admin".to_owned(),
-        env::var("EDGE_PASSWORD").expect("missing environment variable: EDGE_PASSWORD"),
+        username,
+        password,
     ) {
         eprintln!("Failed to authorize against the API: {}", e);
         process::exit(1);
