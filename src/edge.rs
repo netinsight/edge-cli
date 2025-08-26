@@ -859,6 +859,7 @@ pub struct Port {
 pub struct Region {
     pub id: String,
     pub name: String,
+    #[serde(rename = "default_region")]
     pub default_region: Option<bool>,
     pub external: ExternalRegionMode,
 }
