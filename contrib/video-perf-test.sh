@@ -53,8 +53,8 @@ done
 
 num_outputs="${1?missing argument: Number of outputs}"
 
-mapfile -t input_appliances < <(edge appliance list | awk '$3 == "edgeConnect" && $1 ~ /input/ { print $1 }' | sort)
-mapfile -t output_appliances < <(edge appliance list | awk '$3 == "edgeConnect" && $1 ~ /output/ { print $1 }' | sort)
+mapfile -t input_appliances < <(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ /input/ { print $1 }' | sort)
+mapfile -t output_appliances < <(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ /output/ { print $1 }' | sort)
 
 cat >&2 <<EOF
 Input appliances:
@@ -81,21 +81,21 @@ for appliance in "${input_appliances[@]}"; do
     fi
 done
 
-inputs="$(edge input list | awk '/^ID/ { next } { print $2 }')"
-outputs="$(edge output list | awk '/^ID/ { next } { print $2 }')"
+inputs="$(edgectl input list | awk '/^ID/ { next } { print $2 }')"
+outputs="$(edgectl output list | awk '/^ID/ { next } { print $2 }')"
 
 echo >&2 "Setting up generators"
 
 for appliance in "${generator_appliances[@]}"; do
     if ! grep -qw "Perftest-generator-$appliance" <<<"$inputs"; then
-        edge input create "Perftest-generator-$appliance" \
+        edgectl input create "Perftest-generator-$appliance" \
             --appliance "$appliance" \
             --mode generator \
             --bitrate "$bitrate" \
             --thumbnail none
     fi
     if ! grep -qw "Perftest-generator-$appliance" <<<"$outputs"; then
-        edge output create "Perftest-generator-$appliance" \
+        edgectl output create "Perftest-generator-$appliance" \
             --input generator \
             --appliance "$appliance" \
             --interface lo \
@@ -110,14 +110,14 @@ for i in $(seq "$num_outputs"); do
     input_appliance="${input_appliances[$((i % ${#input_appliances[@]}))]}"
     if ! grep -qw "$input" <<<"$inputs"; then
         echo >&2 "Creating input $input on $input_appliance"
-        edge input create "$input"  --appliance "$input_appliance" --interface lo --mode rtp --port 4444 --multicast 224.0.0.44 "${input_extra_args[@]}"
+        edgectl input create "$input"  --appliance "$input_appliance" --interface lo --mode rtp --port 4444 --multicast 224.0.0.44 "${input_extra_args[@]}"
     fi
     for n in $(seq "$fanout"); do
         output_appliance="${output_appliances[$(( ((i-1)*fanout+n-1) % ${#output_appliances[@]}))]}"
         output="Perftest-$i-$n-UDP_output"
         if ! grep -qw "$output" <<<"$outputs"; then
             echo >&2 "Creating output $output on $output_appliance"
-            edge output create "$output" --appliance "$output_appliance" --interface lo --mode udp --dest "127.0.0.1:1234" --input "$input"
+            edgectl output create "$output" --appliance "$output_appliance" --interface lo --mode udp --dest "127.0.0.1:1234" --input "$input"
         fi
     done
 done

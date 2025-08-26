@@ -6,9 +6,9 @@
 set -euo pipefail
 
 # Get all inputs starting with Perftest
-perftest_inputs=$(edge input list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
+perftest_inputs=$(edgectl input list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
 # Get all outputs starting with Perftest
-perftest_outputs=$(edge output list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
+perftest_outputs=$(edgectl output list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
 
 input_count=$(wc -l <<<"$perftest_inputs")
 output_count=$(wc -l <<<"$perftest_outputs")
@@ -46,14 +46,14 @@ if [[ $input_count -eq 0 ]]; then
     echo "No inputs to delete."
 else
     echo "Deleting inputs..."
-    edge input delete Perftest
+    edgectl input delete Perftest
 fi
 
 if [[ $output_count -eq 0 ]]; then
     echo "No outputs to delete."
 else
     echo "Deleting outputs..."
-    edge output delete Perftest
+    edgectl output delete Perftest
 fi
 
 echo
