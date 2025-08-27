@@ -52,13 +52,16 @@ generator_appliance=$(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ 
 output_appliance=$(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ /output/ { print $1 }' | sort | head)
 
 generator_interface=$(edgectl appliance show "$generator_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name) }')
+if [[ -z "$generator_interface" ]]; then echo "ERROR: generator_interface is empty. Make sure the network of at least one interface is \"streaming\" on input appliance." >&2; exit 1; fi
 read -r output_interface output_ip <<< "$(edgectl appliance show "$output_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name, $3) }')"
+if [[ -z "$output_interface" ]]; then echo "ERROR: output_interface is empty. Make sure the network of at least one interface is \"streaming\" on output appliance." >&2; exit 1; fi
 read -r test_interface test_ip <<< "$(edgectl appliance show "$test_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name, $3) }')"
+if [[ -z "$test_interface" ]]; then echo "ERROR: test_interface is empty. Make sure the network of at least one interface is \"streaming\" on test appliance." >&2; exit 1; fi
 
 cat >&2 <<EOF
-Generator appliance:    ${generator_appliance}
-Output appliance:       ${output_appliance}
-Test appliance:         ${test_appliance}
+Generator appliance:interface  : ${generator_appliance}:${generator_interface}
+Output appliance:interface     : ${output_appliance}:${output_interface}
+Test appliance:interface       : ${test_appliance}:${test_interface}
 EOF
 
 inputs="$(edgectl input list | awk '/^ID/ { next } { print $2 }')"
