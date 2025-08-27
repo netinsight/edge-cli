@@ -6,9 +6,9 @@
 set -euo pipefail
 
 # Get all inputs starting with Perftest
-perftest_inputs=$(edgectl input list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
+perftest_inputs=$(edgectl input list | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
 # Get all outputs starting with Perftest
-perftest_outputs=$(edgectl output list --pagesize 1000 | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
+perftest_outputs=$(edgectl output list | awk 'NR>1 && $2 ~ /^Perftest/ {print $2}')
 
 input_count=$(wc -l <<<"$perftest_inputs")
 output_count=$(wc -l <<<"$perftest_outputs")
