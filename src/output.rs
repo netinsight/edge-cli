@@ -839,6 +839,7 @@ fn create(client: EdgeClient, new_output: NewOutput) {
                 pbkeylen: SrtKeylen::None,
                 rate_limiting: SrtRateLimiting::NotEnforced,
                 whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
+                experimental_rist_srt: true,
             }),
         )],
         NewOutputMode::Srt(NewSrtOutputMode::Caller { address, port }) => vec![OutputPort::Srt(
@@ -850,6 +851,7 @@ fn create(client: EdgeClient, new_output: NewOutput) {
                 latency: 120,
                 pbkeylen: SrtKeylen::None,
                 rate_limiting: SrtRateLimiting::NotEnforced,
+                experimental_rist_srt: true,
             }),
         )],
         NewOutputMode::Rist(rist) => vec![OutputPort::Rist(RistOutputPort {

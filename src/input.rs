@@ -801,6 +801,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 latency: 120,
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,
+                experimental_rist_srt: true,
             })]
         }
         NewInputMode::Srt(NewSrtInputMode::Listener {
@@ -818,6 +819,7 @@ fn create(client: EdgeClient, new_input: NewInput) {
                 reduced_bitrate_detection: false,
                 unrecovered_packets_detection: false,
                 whitelist_cidr_block: Some(vec!["0.0.0.0/0".to_owned()]),
+                experimental_rist_srt: true,
             })]
         }
         NewInputMode::Rist(NewRistInputMode {
