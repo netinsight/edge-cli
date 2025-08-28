@@ -584,6 +584,7 @@ pub struct SrtListenerOutputPort {
     pub rate_limiting: SrtRateLimiting,
     // Required on core nodes
     pub whitelist_cidr_block: Option<Vec<String>>,
+    pub experimental_rist_srt: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -619,6 +620,7 @@ pub struct SrtCallerOutputPort {
     pub latency: u16,
     pub pbkeylen: SrtKeylen,
     pub rate_limiting: SrtRateLimiting,
+    pub experimental_rist_srt: bool,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -626,6 +628,7 @@ pub struct SrtRendezvousOutputPort {
     pub local_ip: String,
     pub remote_ip: String,
     pub remote_port: u16, // Both local and remote port
+    pub experimental_rist_srt: bool,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -879,6 +882,7 @@ pub enum SrtInputPort {
         latency: u16,
         reduced_bitrate_detection: bool,
         unrecovered_packets_detection: bool,
+        experimental_rist_srt: bool,
     },
     #[serde(rename_all = "camelCase")]
     Listener {
@@ -889,6 +893,7 @@ pub enum SrtInputPort {
         reduced_bitrate_detection: bool,
         unrecovered_packets_detection: bool,
         whitelist_cidr_block: Option<Vec<String>>,
+        experimental_rist_srt: bool,
     },
     Rendezvous,
 }
