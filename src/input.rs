@@ -319,7 +319,7 @@ pub(crate) fn run(subcmd: &ArgMatches) {
                         let address = dest.split(':').next().expect("dest address is missing");
                         let port = dest
                             .split(':')
-                            .last()
+                            .next_back()
                             .expect("Port number is required for --dest")
                             .parse::<u16>()
                             .expect("port needs to be a number between 0 and 65535");
