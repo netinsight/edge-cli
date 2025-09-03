@@ -5,6 +5,7 @@ use clap::{Arg, ArgMatches, Command};
 use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::{new_client, Appliance, ApplianceHealthState, AppliancePortType, EdgeClient};
+use crate::{green, red};
 
 pub(crate) fn subcommand() -> clap::Command {
     Command::new("appliance")
@@ -125,9 +126,9 @@ pub(crate) fn run(subcmd: &ArgMatches) {
 impl fmt::Display for ApplianceHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Connected => write!(f, "\x1b[32m✓\x1b[0m connected"),
-            Self::Missing => write!(f, "\x1b[31m✗\x1b[0m missing"),
-            Self::NeverConnected => write!(f, "\x1b[31m✗\x1b[0m never connected"),
+            Self::Connected => write!(f, "{} connected", green!("✓")),
+            Self::Missing => write!(f, "{} missing", red!("✗")),
+            Self::NeverConnected => write!(f, "{} never connected", red!("✗")),
         }
     }
 }
@@ -188,8 +189,8 @@ fn show(client: EdgeClient, name: &str) {
         let health_status = appliance
             .health
             .map(|h| match h.state {
-                ApplianceHealthState::Connected => format!("\x1b[32m✓\x1b[0m {}", h.title),
-                _ => format!("\x1b[31m✗\x1b[0m {}", h.title),
+                ApplianceHealthState::Connected => format!("{} {}", green!("✓"), h.title),
+                _ => format!("{} {}", red!("✗"), h.title),
             })
             .unwrap_or("unknown".to_owned());
 

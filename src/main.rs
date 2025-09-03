@@ -1,6 +1,7 @@
 mod appliance;
 mod buildinfo;
 mod cli;
+mod colors;
 mod completions;
 mod edge;
 mod group;

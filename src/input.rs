@@ -12,13 +12,14 @@ use crate::edge::{
     PidMap, RistInputPort, RtpInputPort, SdiEncoderAudioStream, SdiEncoderSettings, SdiInputPort,
     SrtInputPort, UdpInputPort,
 };
+use crate::{green, red};
 
 impl fmt::Display for crate::edge::InputHealth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.state == "allOk" {
-            write!(f, "\x1b[32m✓\x1b[0m")
+            write!(f, "{}", green!("✓"))
         } else {
-            write!(f, "\x1b[31m✗\x1b[0m {}", self.title)
+            write!(f, "{} {}", red!("✗"), self.title)
         }
     }
 }
@@ -538,9 +539,9 @@ fn list(client: EdgeClient) -> anyhow::Result<()> {
             input.id,
             input.name,
             if input.health.state == "allOk" {
-                "\x1b[32m✓\x1b[0m".to_owned()
+                green!("✓")
             } else {
-                format!("\x1b[31m✗\x1b[0m {}", input.health.title)
+                format!("{} {}", red!("✗"), input.health.title)
             },
         ]);
     }
@@ -601,9 +602,9 @@ fn list_wide(client: EdgeClient) -> anyhow::Result<()> {
                 .collect::<Vec<String>>()
                 .join(", "),
             if input.health.state == "allOk" {
-                "\x1b[32m✓\x1b[0m".to_owned()
+                green!("✓")
             } else {
-                format!("\x1b[31m✗\x1b[0m {}", input.health.title)
+                format!("{} {}", red!("✗"), input.health.title)
             },
         ]);
     }

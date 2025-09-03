@@ -11,6 +11,7 @@ use crate::edge::{
     OutputPortFec, RistOutputPort, RtpOutputPort, SrtCallerOutputPort, SrtKeylen,
     SrtListenerOutputPort, SrtOutputPort, SrtRateLimiting, UdpOutputPort, ZixiOutputPort,
 };
+use crate::{green, grey, red, yellow};
 
 pub(crate) fn subcommand() -> clap::Command {
     Command::new("output")
@@ -375,17 +376,17 @@ pub(crate) fn run(subcmd: &ArgMatches) {
 impl fmt::Display for OutputHealthState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::NotConfigured => write!(f, "\x1b[31m✗\x1b[0m Not configured"),
-            Self::MetricsMissing => write!(f, "\x1b[31m✗\x1b[0m Missing metrics"),
+            Self::NotConfigured => write!(f, "{} Not configured", red!("✗")),
+            Self::MetricsMissing => write!(f, "{} Missing metrics", red!("✗")),
             Self::Tr101290Priority1Error => {
-                write!(f, "\x1b[31m✗\x1b[0m TR 101 290 Priority 1 errors")
+                write!(f, "{} TR 101 290 Priority 1 errors", red!("✗"))
             }
-            Self::ReducedRedundancy => write!(f, "\x1b[33m⚠\x1b[0m Reduced redundancy"),
-            Self::AllOk => write!(f, "\x1b[32m✓\x1b[0m"),
+            Self::ReducedRedundancy => write!(f, "{} Reduced redundancy", yellow!("⚠")),
+            Self::AllOk => write!(f, "{}", green!("✓")),
             Self::NotAcknowledged => write!(f, "No ACKs recieved"),
-            Self::InputError => write!(f, "\x1b[31m✗\x1b[0m Input error"),
-            Self::OutputError => write!(f, "\x1b[31m✗\x1b[0m Output error"),
-            Self::Alarm => write!(f, "\x1b[31m✗\x1b[0m Alarm"),
+            Self::InputError => write!(f, "{} Input error", red!("✗")),
+            Self::OutputError => write!(f, "{} Output error", red!("✗")),
+            Self::Alarm => write!(f, "{} Alarm", red!("✗")),
         }
     }
 }
@@ -404,7 +405,7 @@ impl Output {
                     }
                 })
                 .unwrap_or("unknown".to_owned()),
-            OutputAdminStatus::Off => "\x1b[37m⏻\x1b[0m Disabled".to_owned(),
+            OutputAdminStatus::Off => format!("{} Disabled", grey!("⏻")),
         }
     }
 }
