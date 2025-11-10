@@ -10,6 +10,7 @@ mod input;
 mod kubernetes;
 mod node;
 mod output;
+mod output_list;
 mod region;
 mod settings;
 mod tunnels;
@@ -24,6 +25,7 @@ fn main() {
     match matches.subcommand() {
         Some(("input", subcmd)) => input::run(subcmd),
         Some(("output", subcmd)) => output::run(subcmd),
+        Some(("output-list", subcmd)) => output_list::run(subcmd),
         Some(("appliance", subcmd)) => appliance::run(subcmd),
         Some(("group", subcmd)) => group::run(subcmd),
         Some(("region", subcmd)) => region::run(subcmd),
