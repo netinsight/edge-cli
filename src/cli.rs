@@ -5,6 +5,7 @@ use crate::health;
 use crate::input;
 use crate::node;
 use crate::output;
+use crate::output_list;
 use crate::region;
 use crate::settings;
 use crate::tunnels;
@@ -17,6 +18,7 @@ pub(crate) fn build() -> Command {
         .subcommand_required(true)
         .subcommand(input::subcommand())
         .subcommand(output::subcommand())
+        .subcommand(output_list::subcommand())
         .subcommand(appliance::subcommand())
         .subcommand(group::subcommand())
         .subcommand(region::subcommand())

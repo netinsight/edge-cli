@@ -13,10 +13,7 @@ pub fn new_client() -> EdgeClient {
     );
     let username = env::var("EDGE_USER").unwrap_or_else(|_| "admin".to_owned());
     let password = env::var("EDGE_PASSWORD").expect("missing environment variable: EDGE_PASSWORD");
-    if let Err(e) = client.login(
-        username,
-        password,
-    ) {
+    if let Err(e) = client.login(username, password) {
         eprintln!("Failed to authorize against the API: {}", e);
         process::exit(1);
     }
@@ -843,6 +840,25 @@ pub enum GeneratorBitrate {
 #[serde(rename_all = "camelCase")]
 pub struct GeneratorBitrateCBR {
     pub bitrate: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutputRecipientList {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewOutputRecipientList {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub group: String,
+    pub add_outputs: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1843,5 +1859,152 @@ impl EdgeClient {
             .send()?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    pub fn list_output_recipient_lists(&self) -> Result<Vec<OutputRecipientList>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct OutputRecipientListResp {
+            items: Vec<OutputRecipientList>,
+        }
+
+        let res = self
+            .client
+            .get(format!("{}/api/outputRecipientList/", self.url))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<OutputRecipientListResp>()?.items)
+    }
+
+    pub fn create_output_recipient_list(
+        &self,
+        list: NewOutputRecipientList,
+    ) -> Result<OutputRecipientList, EdgeError> {
+        let res = self
+            .client
+            .post(format!("{}/api/outputRecipientList/", self.url))
+            .header("content-type", "application/json")
+            .json(&list)
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<OutputRecipientList>()?)
+    }
+
+    pub fn delete_output_recipient_list(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/outputRecipientList/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn get_output_list_members(&self, id: &str) -> Result<Vec<Output>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct OutputListMembersResp {
+            items: Vec<Output>,
+        }
+
+        let res = self
+            .client
+            .get(format!(
+                "{}/api/outputRecipientList/{}/outputs",
+                self.url, id
+            ))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<OutputListMembersResp>()?.items)
+    }
+
+    pub fn add_output_to_list(
+        &self,
+        list_id: &str,
+        list_name: &str,
+        outputs: Vec<String>,
+    ) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateOutputsPayload {
+            name: String,
+            add_outputs: Vec<String>,
+            remove_outputs: Vec<String>,
+        }
+
+        self.client
+            .post(format!("{}/api/outputRecipientList/{}", self.url, list_id))
+            .header("content-type", "application/json")
+            .json(&UpdateOutputsPayload {
+                name: list_name.to_string(),
+                add_outputs: outputs,
+                remove_outputs: Vec::new(),
+            })
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn remove_output_from_list(
+        &self,
+        list_id: &str,
+        list_name: &str,
+        outputs: Vec<String>,
+    ) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateOutputsPayload {
+            name: String,
+            add_outputs: Vec<String>,
+            remove_outputs: Vec<String>,
+        }
+
+        self.client
+            .post(format!("{}/api/outputRecipientList/{}", self.url, list_id))
+            .header("content-type", "application/json")
+            .json(&UpdateOutputsPayload {
+                name: list_name.to_string(),
+                add_outputs: Vec::new(),
+                remove_outputs: outputs,
+            })
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn find_output_recipient_lists(
+        &self,
+        name: &str,
+    ) -> Result<Vec<OutputRecipientList>, EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct OutputRecipientListFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct OutputRecipientListResp {
+            items: Vec<OutputRecipientList>,
+        }
+
+        let query = EdgeQuery {
+            filter: OutputRecipientListFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(
+                r#"{}/api/outputRecipientList/?q={}"#,
+                self.url, query
+            ))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<OutputRecipientListResp>()?.items)
     }
 }
