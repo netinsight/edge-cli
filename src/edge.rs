@@ -863,6 +863,25 @@ pub struct NewOutputRecipientList {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GroupRecipientList {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewGroupRecipientList {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub group: String,
+    pub add_groups: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Group {
     pub id: String,
     pub name: String,
@@ -2006,5 +2025,147 @@ impl EdgeClient {
             .error_if_not_success()?;
 
         Ok(res.json::<OutputRecipientListResp>()?.items)
+    }
+
+    pub fn list_group_recipient_lists(&self) -> Result<Vec<GroupRecipientList>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct GroupRecipientListResp {
+            items: Vec<GroupRecipientList>,
+        }
+
+        let res = self
+            .client
+            .get(format!("{}/api/groupRecipientList/", self.url))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<GroupRecipientListResp>()?.items)
+    }
+
+    pub fn create_group_recipient_list(
+        &self,
+        list: NewGroupRecipientList,
+    ) -> Result<GroupRecipientList, EdgeError> {
+        let res = self
+            .client
+            .post(format!("{}/api/groupRecipientList/", self.url))
+            .header("content-type", "application/json")
+            .json(&list)
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<GroupRecipientList>()?)
+    }
+
+    pub fn delete_group_recipient_list(&self, id: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/groupRecipientList/{}", self.url, id))
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn get_group_list_members(&self, id: &str) -> Result<Vec<Group>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct GroupListMembersResp {
+            items: Vec<Group>,
+        }
+
+        let res = self
+            .client
+            .get(format!("{}/api/groupRecipientList/{}/groups", self.url, id))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<GroupListMembersResp>()?.items)
+    }
+
+    pub fn add_group_to_list(
+        &self,
+        list_id: &str,
+        list_name: &str,
+        group_ids: Vec<String>,
+    ) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateGroupsPayload {
+            name: String,
+            add_groups: Vec<String>,
+            remove_groups: Vec<String>,
+        }
+
+        self.client
+            .post(format!("{}/api/groupRecipientList/{}", self.url, list_id))
+            .header("content-type", "application/json")
+            .json(&UpdateGroupsPayload {
+                name: list_name.to_string(),
+                add_groups: group_ids,
+                remove_groups: Vec::new(),
+            })
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn remove_group_from_list(
+        &self,
+        list_id: &str,
+        list_name: &str,
+        group_ids: Vec<String>,
+    ) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateGroupsPayload {
+            name: String,
+            add_groups: Vec<String>,
+            remove_groups: Vec<String>,
+        }
+
+        self.client
+            .post(format!("{}/api/groupRecipientList/{}", self.url, list_id))
+            .header("content-type", "application/json")
+            .json(&UpdateGroupsPayload {
+                name: list_name.to_string(),
+                add_groups: Vec::new(),
+                remove_groups: group_ids,
+            })
+            .send()?
+            .error_if_not_success()
+            .map(|_| ())
+    }
+
+    pub fn find_group_recipient_lists(
+        &self,
+        name: &str,
+    ) -> Result<Vec<GroupRecipientList>, EdgeError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct GroupRecipientListFilter {
+            search_name: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct GroupRecipientListResp {
+            items: Vec<GroupRecipientList>,
+        }
+
+        let query = EdgeQuery {
+            filter: GroupRecipientListFilter {
+                search_name: name.to_owned(),
+            },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(
+                r#"{}/api/groupRecipientList/?q={}"#,
+                self.url, query
+            ))
+            .header("content-type", "application/json")
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(res.json::<GroupRecipientListResp>()?.items)
     }
 }
