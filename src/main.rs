@@ -5,6 +5,7 @@ mod colors;
 mod completions;
 mod edge;
 mod group;
+mod group_list;
 mod health;
 mod input;
 mod kubernetes;
@@ -28,6 +29,7 @@ fn main() {
         Some(("output-list", subcmd)) => output_list::run(subcmd),
         Some(("appliance", subcmd)) => appliance::run(subcmd),
         Some(("group", subcmd)) => group::run(subcmd),
+        Some(("group-list", subcmd)) => group_list::run(subcmd),
         Some(("region", subcmd)) => region::run(subcmd),
         Some(("node", subcmd)) => node::run(subcmd),
         Some(("tunnel", subcmd)) => tunnels::run(subcmd),

@@ -1,6 +1,7 @@
 use crate::appliance;
 use crate::completions;
 use crate::group;
+use crate::group_list;
 use crate::health;
 use crate::input;
 use crate::node;
@@ -21,6 +22,7 @@ pub(crate) fn build() -> Command {
         .subcommand(output_list::subcommand())
         .subcommand(appliance::subcommand())
         .subcommand(group::subcommand())
+        .subcommand(group_list::subcommand())
         .subcommand(region::subcommand())
         .subcommand(node::subcommand())
         .subcommand(tunnels::subcommand())
