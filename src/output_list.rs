@@ -210,22 +210,27 @@ fn delete(args: &ArgMatches) {
     let client = new_client();
 
     for name in names {
-        let lists = client
-            .find_output_recipient_lists(name)
-            .expect(format!("Failed to find output list {}", name).as_str());
+        let list = match client.find_output_recipient_lists(name) {
+            Ok(lists) if lists.is_empty() => {
+                eprintln!("Output list '{}' not found", name);
+                std::process::exit(1);
+            }
+            Ok(lists) if lists.len() > 1 => {
+                eprintln!("Multiple output lists found with name '{}'", name);
+                std::process::exit(1);
+            }
+            Ok(mut lists) => lists.pop().unwrap(),
+            Err(e) => {
+                eprintln!("Failed to find output list {}: {}", name, e);
+                std::process::exit(1);
+            }
+        };
 
-        if lists.is_empty() {
-            eprintln!("Output list '{}' not found", name);
-            std::process::exit(1);
-        }
+        client
+            .delete_output_recipient_list(&list.id)
+            .expect("Failed to delete output list");
 
-        for list in lists {
-            client
-                .delete_output_recipient_list(&list.id)
-                .expect("Failed to delete output list");
-
-            println!("Deleted output list '{}'", list.name);
-        }
+        println!("Deleted output list '{}'", list.name);
     }
 }
 
@@ -278,10 +283,22 @@ fn get_output_ids_by_names(
     names
         .into_iter()
         .map(|output_name| {
-            client
-                .find_outputs(&output_name)
-                .expect(format!("Failed to find output {}", output_name).as_str())
+            let output = match client.find_outputs(output_name) {
+                Ok(outputs) if outputs.is_empty() => {
+                    eprintln!("Output '{}' not found", output_name);
+                    std::process::exit(1);
+                }
+                Ok(outputs) if outputs.len() > 1 => {
+                    eprintln!("Multiple outputs found with name '{}'", output_name);
+                    std::process::exit(1);
+                }
+                Ok(mut outputs) => outputs.pop().unwrap(),
+                Err(e) => {
+                    eprintln!("Failed to find output {}: {}", output_name, e);
+                    std::process::exit(1);
+                }
+            };
+            output.id
         })
-        .flat_map(|f| f.iter().map(|o| o.id.clone()).collect::<Vec<_>>())
         .collect::<Vec<_>>()
 }

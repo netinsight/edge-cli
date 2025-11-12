@@ -209,22 +209,27 @@ fn delete(args: &ArgMatches) {
     let client = new_client();
 
     for name in names {
-        let lists = client
-            .find_group_recipient_lists(name)
-            .expect(format!("Failed to find group list {}", name).as_str());
+        let list = match client.find_group_recipient_lists(name) {
+            Ok(lists) if lists.is_empty() => {
+                eprintln!("Group list '{}' not found", name);
+                std::process::exit(1);
+            }
+            Ok(lists) if lists.len() > 1 => {
+                eprintln!("Multiple group lists found with name '{}'", name);
+                std::process::exit(1);
+            }
+            Ok(mut lists) => lists.pop().unwrap(),
+            Err(e) => {
+                eprintln!("Failed to find group list {}: {}", name, e);
+                std::process::exit(1);
+            }
+        };
 
-        if lists.is_empty() {
-            eprintln!("Group list '{}' not found", name);
-            std::process::exit(1);
-        }
+        client
+            .delete_group_recipient_list(&list.id)
+            .expect("Failed to delete group list");
 
-        for list in lists {
-            client
-                .delete_group_recipient_list(&list.id)
-                .expect("Failed to delete group list");
-
-            println!("Deleted group list '{}'", list.name);
-        }
+        println!("Deleted group list '{}'", list.name);
     }
 }
 
@@ -277,10 +282,22 @@ fn get_group_ids_by_names(
     names
         .into_iter()
         .map(|group_name| {
-            client
-                .find_groups(&group_name)
-                .expect(format!("Failed to find group {}", group_name).as_str())
+            let group = match client.find_groups(group_name) {
+                Ok(g) if g.is_empty() => {
+                    eprintln!("Group '{}' not found", group_name);
+                    std::process::exit(1);
+                }
+                Ok(g) if g.len() > 1 => {
+                    eprintln!("Multiple groups found with name '{}'", group_name);
+                    std::process::exit(1);
+                }
+                Ok(mut g) => g.pop().unwrap(),
+                Err(e) => {
+                    eprintln!("Failed to find group {}: {}", group_name, e);
+                    std::process::exit(1);
+                }
+            };
+            group.id
         })
-        .flat_map(|f| f.iter().map(|g| g.id.clone()).collect::<Vec<_>>())
         .collect::<Vec<_>>()
 }
