@@ -6,12 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.100"
+# Disable default features to reduce transistive dependencies
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 clap = "4.5.51"
+clap_complete = "4.5.60"
+openssl = { version = "0.10.75", features = ["vendored"] } # vendor openssl to enable static builds
 reqwest = { version = "0.12.24", features = ["blocking", "json", "cookies"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tabled = "0.20.0"
 uuid = { version = "1.18.1", features = [ "v4" ] }
-openssl = { version = "0.10.75", features = ["vendored"] } # vendor openssl to enable static builds
-anyhow = "1.0.100"
-clap_complete = "4.5.60"

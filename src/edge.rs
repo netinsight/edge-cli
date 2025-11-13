@@ -353,6 +353,29 @@ pub struct OutputAlarm {
     pub text: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlarmWithImpact {
+    pub alarm_cause: String,
+    pub alarm_severity: String,
+    #[serde(rename = "type")]
+    pub alarm_type: String,
+    pub object_name: String,
+    pub repeat_count: u32,
+    pub affected_input: Option<String>,
+    pub affected_output: Option<String>,
+    pub appliance_name: Option<String>,
+    pub input_id: Option<String>,
+    pub input_name: Option<String>,
+    pub object_purpose: Option<String>,
+    pub output_id: Option<String>,
+    pub output_name: Option<String>,
+    pub physical_port_id: Option<String>,
+    pub raised_at: Option<String>,
+    pub region: Option<String>,
+    pub text: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewGroup {
@@ -1450,6 +1473,37 @@ impl EdgeClient {
         Ok(res.json::<InputListResp>()?.items)
     }
 
+    pub fn list_inputs_by_ids(&self, ids: Vec<String>) -> Result<Vec<Input>, reqwest::Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct InputFilterByIds {
+            ids: Vec<String>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct InputListResp {
+            items: Vec<Input>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: InputFilterByIds { ids },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/input/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<InputListResp>()?.items)
+    }
+
     pub fn create_input(&self, input: NewInput) -> Result<(), EdgeError> {
         self.client
             .post(format!("{}/api/input/", self.url))
@@ -1521,6 +1575,37 @@ impl EdgeClient {
             filter: OutputFilter {
                 search_name: name.to_owned(),
             },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/output/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<OutputListResp>()?.items)
+    }
+
+    pub fn list_outputs_by_ids(&self, ids: Vec<String>) -> Result<Vec<Output>, EdgeError> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct OutputFilterByIds {
+            ids: Vec<String>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct OutputListResp {
+            items: Vec<Output>,
+            // total: u32,
+        }
+
+        let query = EdgeQuery {
+            filter: OutputFilterByIds { ids },
         };
         let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
 
@@ -2167,5 +2252,40 @@ impl EdgeClient {
             .error_if_not_success()?;
 
         Ok(res.json::<GroupRecipientListResp>()?.items)
+    }
+
+    pub fn list_alarms(&self) -> Result<Vec<AlarmWithImpact>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct AlarmListResp {
+            items: Vec<AlarmWithImpact>,
+        }
+
+        let mut all_alarms = Vec::new();
+        let pagesize = 100;
+        let mut page = 1;
+
+        loop {
+            let skip = (page - 1) * pagesize;
+            let res = self
+                .client
+                .get(format!(
+                    r#"{}/api/alarm/?q={{"filter":{{}},"skip":{},"limit":{}}}"#,
+                    self.url, skip, pagesize
+                ))
+                .header("content-type", "application/json")
+                .send()?
+                .error_if_not_success()?;
+
+            let resp = res.json::<AlarmListResp>()?;
+            let items_count = resp.items.len();
+            all_alarms.extend(resp.items);
+
+            if items_count < pagesize {
+                break;
+            }
+            page += 1;
+        }
+
+        Ok(all_alarms)
     }
 }
