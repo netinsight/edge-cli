@@ -376,6 +376,29 @@ pub struct AlarmWithImpact {
     pub text: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Alarm {
+    pub alarm_id: String,
+    pub alarm_cause: String,
+    pub alarm_severity: String,
+    #[serde(rename = "type")]
+    pub alarm_type: String,
+    pub object_name: String,
+    pub repeat_count: u32,
+    pub appliance_name: Option<String>,
+    pub input_id: Option<String>,
+    pub input_name: Option<String>,
+    pub object_purpose: Option<String>,
+    pub output_id: Option<String>,
+    pub output_name: Option<String>,
+    pub physical_port_id: Option<String>,
+    pub raised_at: Option<String>,
+    pub cleared_at: Option<String>,
+    pub region: Option<String>,
+    pub text: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewGroup {
@@ -914,6 +937,7 @@ pub struct Group {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Port {
+    pub id: String,
     pub name: String,
 }
 
@@ -1737,6 +1761,36 @@ impl EdgeClient {
         res.json::<Port>()
     }
 
+    pub fn list_ports_by_ids(&self, ids: Vec<String>) -> Result<Vec<Port>, reqwest::Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct PortFilterByIds {
+            ids: Vec<String>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct PortListResp {
+            items: Vec<Port>,
+        }
+
+        let query = EdgeQuery {
+            filter: PortFilterByIds { ids },
+        };
+        let query = serde_json::to_string(&query).expect("Failed to serialize filter as JSON");
+
+        let res = self
+            .client
+            .get(format!(r#"{}/api/port/?q={}"#, self.url, query))
+            .header("content-type", "application/json")
+            .send()?;
+
+        Ok(res.json::<PortListResp>()?.items)
+    }
+
     pub fn list_appliances(&self) -> Result<Vec<Appliance>, reqwest::Error> {
         #[derive(Debug, Deserialize)]
         struct ApplianceListResponse {
@@ -2281,6 +2335,47 @@ impl EdgeClient {
             all_alarms.extend(resp.items);
 
             if items_count < pagesize {
+                break;
+            }
+            page += 1;
+        }
+
+        Ok(all_alarms)
+    }
+
+    pub fn list_alarm_history(&self, limit: usize) -> Result<Vec<Alarm>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct AlarmLogResp {
+            items: Vec<Alarm>,
+        }
+
+        let mut all_alarms = Vec::new();
+        let pagesize = 100;
+        let mut page = 1;
+
+        loop {
+            let skip = (page - 1) * pagesize;
+            let remaining = limit.saturating_sub(all_alarms.len());
+            if remaining == 0 {
+                break;
+            }
+
+            let fetch_size = pagesize.min(remaining);
+            let res = self
+                .client
+                .get(format!(
+                    r#"{}/api/alarm-log/?q={{"filter":{{}},"skip":{},"limit":{}}}"#,
+                    self.url, skip, fetch_size
+                ))
+                .header("content-type", "application/json")
+                .send()?
+                .error_if_not_success()?;
+
+            let resp = res.json::<AlarmLogResp>()?;
+            let items_count = resp.items.len();
+            all_alarms.extend(resp.items);
+
+            if items_count < fetch_size {
                 break;
             }
             page += 1;
