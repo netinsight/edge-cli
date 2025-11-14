@@ -6,9 +6,17 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::new_client;
 
-fn parse_relative_time(input: &str) -> Result<String, String> {
-    let duration = humantime::parse_duration(input)
-        .map_err(|e| format!("Failed to parse time '{}': {}", input, e))?;
+fn parse_time_filter(input: &str) -> Result<String, String> {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(input) {
+        return Ok(dt.to_utc().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string());
+    }
+
+    let duration = humantime::parse_duration(input).map_err(|e| {
+        format!(
+            "Invalid time format '{}': {}. Expected ISO8601 timestamp or relative time (e.g., 2h, 30m)",
+            input, e
+        )
+    })?;
 
     let now = SystemTime::now();
     let past_time = now
@@ -56,13 +64,13 @@ pub(crate) fn subcommand() -> clap::Command {
                     Arg::new("since")
                         .long("since")
                         .value_name("TIME")
-                        .help("Show alarms since this time (e.g., 2h, 30m, 1d)"),
+                        .help("Show alarms since this time (e.g., 2h, 30m, 2025-11-14T09:00:00Z)"),
                 )
                 .arg(
                     Arg::new("until")
                         .long("until")
                         .value_name("TIME")
-                        .help("Show alarms until this time (e.g., 2h, 30m, 1d)"),
+                        .help("Show alarms until this time (e.g., 2h, 30m, 2025-11-14T09:00:00Z)"),
                 )
                 .subcommand(
                     Command::new("list")
@@ -83,18 +91,12 @@ pub(crate) fn subcommand() -> clap::Command {
                                 .default_value("30")
                                 .help("Maximum number of alarm history entries to fetch"),
                         )
-                        .arg(
-                            Arg::new("since")
-                                .long("since")
-                                .value_name("TIME")
-                                .help("Show alarms since this time (e.g., 2h, 30m, 1d)"),
-                        )
-                        .arg(
-                            Arg::new("until")
-                                .long("until")
-                                .value_name("TIME")
-                                .help("Show alarms until this time (e.g., 2h, 30m, 1d)"),
-                        ),
+                        .arg(Arg::new("since").long("since").value_name("TIME").help(
+                            "Show alarms since this time (e.g., 2h, 30m, 2025-11-14T09:00:00Z)",
+                        ))
+                        .arg(Arg::new("until").long("until").value_name("TIME").help(
+                            "Show alarms until this time (e.g., 2h, 30m, 2025-11-14T09:00:00Z)",
+                        )),
                 ),
         )
 }
@@ -120,13 +122,13 @@ fn run_history(args: &ArgMatches) {
         Some(("list", sub_args)) => {
             let limit = *sub_args.get_one::<usize>("limit").unwrap();
             let from_date = sub_args.get_one::<String>("since").map(|s| {
-                parse_relative_time(s).unwrap_or_else(|e| {
+                parse_time_filter(s).unwrap_or_else(|e| {
                     eprintln!("{}", e);
                     std::process::exit(1);
                 })
             });
             let to_date = sub_args.get_one::<String>("until").map(|s| {
-                parse_relative_time(s).unwrap_or_else(|e| {
+                parse_time_filter(s).unwrap_or_else(|e| {
                     eprintln!("{}", e);
                     std::process::exit(1);
                 })
@@ -140,13 +142,13 @@ fn run_history(args: &ArgMatches) {
         None => {
             let limit = *args.get_one::<usize>("limit").unwrap();
             let from_date = args.get_one::<String>("since").map(|s| {
-                parse_relative_time(s).unwrap_or_else(|e| {
+                parse_time_filter(s).unwrap_or_else(|e| {
                     eprintln!("{}", e);
                     std::process::exit(1);
                 })
             });
             let to_date = args.get_one::<String>("until").map(|s| {
-                parse_relative_time(s).unwrap_or_else(|e| {
+                parse_time_filter(s).unwrap_or_else(|e| {
                     eprintln!("{}", e);
                     std::process::exit(1);
                 })
