@@ -1,3 +1,4 @@
+use crate::alarm;
 use crate::appliance;
 use crate::completions;
 use crate::group;
@@ -17,6 +18,7 @@ pub(crate) fn build() -> Command {
     Command::new("edgectl")
         .about("Nimbra Edge CLI")
         .subcommand_required(true)
+        .subcommand(alarm::subcommand())
         .subcommand(input::subcommand())
         .subcommand(output::subcommand())
         .subcommand(output_list::subcommand())

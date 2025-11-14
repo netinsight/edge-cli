@@ -1,3 +1,4 @@
+mod alarm;
 mod appliance;
 mod buildinfo;
 mod cli;
@@ -24,6 +25,7 @@ fn main() {
     let matches = cli::build().get_matches();
 
     match matches.subcommand() {
+        Some(("alarm", subcmd)) => alarm::run(subcmd),
         Some(("input", subcmd)) => input::run(subcmd),
         Some(("output", subcmd)) => output::run(subcmd),
         Some(("output-list", subcmd)) => output_list::run(subcmd),
