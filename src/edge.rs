@@ -2343,10 +2343,31 @@ impl EdgeClient {
         Ok(all_alarms)
     }
 
-    pub fn list_alarm_history(&self, limit: usize) -> Result<Vec<Alarm>, EdgeError> {
+    pub fn list_alarm_history(
+        &self,
+        limit: usize,
+        from_date: Option<String>,
+        to_date: Option<String>,
+    ) -> Result<Vec<Alarm>, EdgeError> {
         #[derive(Debug, Deserialize)]
         struct AlarmLogResp {
             items: Vec<Alarm>,
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct AlarmLogFilter {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            from_date: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            to_date: Option<String>,
+        }
+
+        #[derive(Serialize)]
+        struct AlarmLogQuery {
+            filter: AlarmLogFilter,
+            skip: usize,
+            limit: usize,
         }
 
         let mut all_alarms = Vec::new();
@@ -2361,12 +2382,20 @@ impl EdgeClient {
             }
 
             let fetch_size = pagesize.min(remaining);
+
+            let query = AlarmLogQuery {
+                filter: AlarmLogFilter {
+                    from_date: from_date.clone(),
+                    to_date: to_date.clone(),
+                },
+                skip,
+                limit: fetch_size,
+            };
+            let query_str = serde_json::to_string(&query).expect("Failed to serialize query");
+
             let res = self
                 .client
-                .get(format!(
-                    r#"{}/api/alarm-log/?q={{"filter":{{}},"skip":{},"limit":{}}}"#,
-                    self.url, skip, fetch_size
-                ))
+                .get(format!("{}/api/alarm-log/?q={}", self.url, query_str))
                 .header("content-type", "application/json")
                 .send()?
                 .error_if_not_success()?;

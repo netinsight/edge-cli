@@ -6,6 +6,19 @@ use tabled::{builder::Builder, settings::Style};
 
 use crate::edge::new_client;
 
+fn parse_relative_time(input: &str) -> Result<String, String> {
+    let duration = humantime::parse_duration(input)
+        .map_err(|e| format!("Failed to parse time '{}': {}", input, e))?;
+
+    let now = SystemTime::now();
+    let past_time = now
+        .checked_sub(duration)
+        .ok_or_else(|| format!("Time '{}' is too far in the past", input))?;
+
+    let datetime: DateTime<Utc> = past_time.into();
+    Ok(datetime.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+}
+
 pub(crate) fn subcommand() -> clap::Command {
     Command::new("alarm")
         .about("Manage alarms")
@@ -39,6 +52,18 @@ pub(crate) fn subcommand() -> clap::Command {
                         .default_value("30")
                         .help("Maximum number of alarm history entries to fetch"),
                 )
+                .arg(
+                    Arg::new("since")
+                        .long("since")
+                        .value_name("TIME")
+                        .help("Show alarms since this time (e.g., 2h, 30m, 1d)"),
+                )
+                .arg(
+                    Arg::new("until")
+                        .long("until")
+                        .value_name("TIME")
+                        .help("Show alarms until this time (e.g., 2h, 30m, 1d)"),
+                )
                 .subcommand(
                     Command::new("list")
                         .about("List historical alarms")
@@ -55,8 +80,20 @@ pub(crate) fn subcommand() -> clap::Command {
                                 .long("limit")
                                 .short('l')
                                 .value_parser(clap::value_parser!(usize))
-                                .default_value("100")
+                                .default_value("30")
                                 .help("Maximum number of alarm history entries to fetch"),
+                        )
+                        .arg(
+                            Arg::new("since")
+                                .long("since")
+                                .value_name("TIME")
+                                .help("Show alarms since this time (e.g., 2h, 30m, 1d)"),
+                        )
+                        .arg(
+                            Arg::new("until")
+                                .long("until")
+                                .value_name("TIME")
+                                .help("Show alarms until this time (e.g., 2h, 30m, 1d)"),
                         ),
                 ),
         )
@@ -82,6 +119,18 @@ fn run_history(args: &ArgMatches) {
     match args.subcommand() {
         Some(("list", sub_args)) => {
             let limit = *sub_args.get_one::<usize>("limit").unwrap();
+            let from_date = sub_args.get_one::<String>("since").map(|s| {
+                parse_relative_time(s).unwrap_or_else(|e| {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                })
+            });
+            let to_date = sub_args.get_one::<String>("until").map(|s| {
+                parse_relative_time(s).unwrap_or_else(|e| {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                })
+            });
             match sub_args.get_one::<String>("output").map(|s| s.as_str()) {
                 Some("wide") => history_list_wide(limit),
                 _ => history_list(limit),
@@ -89,6 +138,18 @@ fn run_history(args: &ArgMatches) {
         }
         None => {
             let limit = *args.get_one::<usize>("limit").unwrap();
+            let from_date = args.get_one::<String>("since").map(|s| {
+                parse_relative_time(s).unwrap_or_else(|e| {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                })
+            });
+            let to_date = args.get_one::<String>("until").map(|s| {
+                parse_relative_time(s).unwrap_or_else(|e| {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                })
+            });
             match args.get_one::<String>("output").map(|s| s.as_str()) {
                 Some("wide") => history_list_wide(limit),
                 _ => history_list(limit),
@@ -417,10 +478,10 @@ fn list_wide() {
     println!("{}", table);
 }
 
-fn history_list(limit: usize) {
+fn history_list(limit: usize, from_date: Option<String>, to_date: Option<String>) {
     let client = new_client();
     let alarms = client
-        .list_alarm_history(limit)
+        .list_alarm_history(limit, from_date, to_date)
         .expect("Failed to list alarm history");
 
     if alarms.is_empty() {
@@ -542,10 +603,10 @@ fn history_list(limit: usize) {
     println!("{}", table);
 }
 
-fn history_list_wide(limit: usize) {
+fn history_list_wide(limit: usize, from_date: Option<String>, to_date: Option<String>) {
     let client = new_client();
     let alarms = client
-        .list_alarm_history(limit)
+        .list_alarm_history(limit, from_date, to_date)
         .expect("Failed to list alarm history");
 
     if alarms.is_empty() {
