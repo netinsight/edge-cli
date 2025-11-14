@@ -40,7 +40,7 @@ pub(crate) fn subcommand() -> clap::Command {
                     Arg::new("output")
                         .long("output")
                         .short('o')
-                        .value_parser(["short", "wide"])
+                        .value_parser(["short", "wide", "yaml"])
                         .default_value("short")
                         .help("Change the output format"),
                 )
@@ -71,7 +71,7 @@ pub(crate) fn subcommand() -> clap::Command {
                             Arg::new("output")
                                 .long("output")
                                 .short('o')
-                                .value_parser(["short", "wide"])
+                                .value_parser(["short", "wide", "yaml"])
                                 .default_value("short")
                                 .help("Change the output format"),
                         )
@@ -132,8 +132,9 @@ fn run_history(args: &ArgMatches) {
                 })
             });
             match sub_args.get_one::<String>("output").map(|s| s.as_str()) {
-                Some("wide") => history_list_wide(limit),
-                _ => history_list(limit),
+                Some("wide") => history_list_wide(limit, from_date, to_date),
+                Some("yaml") => history_list_yaml(limit, from_date, to_date),
+                _ => history_list(limit, from_date, to_date),
             }
         }
         None => {
@@ -151,8 +152,9 @@ fn run_history(args: &ArgMatches) {
                 })
             });
             match args.get_one::<String>("output").map(|s| s.as_str()) {
-                Some("wide") => history_list_wide(limit),
-                _ => history_list(limit),
+                Some("wide") => history_list_wide(limit, from_date, to_date),
+                Some("yaml") => history_list_yaml(limit, from_date, to_date),
+                _ => history_list(limit, from_date, to_date),
             }
         }
         _ => {
@@ -587,12 +589,17 @@ fn history_list(limit: usize, from_date: Option<String>, to_date: Option<String>
         };
 
         let message = alarm.text.as_deref().unwrap_or("-");
+        let message = if message.len() > 50 {
+            format!("{}…", &message[..49])
+        } else {
+            message.to_string()
+        };
 
         builder.push_record([
             &time_ago,
             &alarm.alarm_severity,
             &alarm.alarm_cause,
-            message,
+            &message,
             appliance,
             &entity,
         ]);
@@ -687,10 +694,7 @@ fn history_list_wide(limit: usize, from_date: Option<String>, to_date: Option<St
         "Entity",
         "Type",
         "Object Name",
-        "Object Purpose",
         "Port",
-        "Repeat",
-        "Region",
         "Raised At",
         "Cleared At",
     ]);
@@ -745,20 +749,24 @@ fn history_list_wide(limit: usize, from_date: Option<String>, to_date: Option<St
             .map(|s| s.as_str())
             .unwrap_or("-");
 
+        let message = alarm.text.as_deref().unwrap_or("-");
+        let message = if message.len() > 50 {
+            format!("{}…", &message[..49])
+        } else {
+            message.to_string()
+        };
+
         builder.push_record([
             &time_ago,
             &alarm.alarm_id,
             &alarm.alarm_severity,
             &alarm.alarm_cause,
-            alarm.text.as_deref().unwrap_or("-"),
+            &message,
             alarm.appliance_name.as_deref().unwrap_or("-"),
             &entity,
             &alarm.alarm_type,
             &alarm.object_name,
-            alarm.object_purpose.as_deref().unwrap_or("-"),
             port,
-            &alarm.repeat_count.to_string(),
-            alarm.region.as_deref().unwrap_or("-"),
             alarm.raised_at.as_deref().unwrap_or("-"),
             alarm.cleared_at.as_deref().unwrap_or("-"),
         ]);
@@ -767,4 +775,148 @@ fn history_list_wide(limit: usize, from_date: Option<String>, to_date: Option<St
     let mut table = builder.build();
     table.with(Style::empty());
     println!("{}", table);
+}
+
+fn history_list_yaml(limit: usize, from_date: Option<String>, to_date: Option<String>) {
+    let client = new_client();
+    let alarms = client
+        .list_alarm_history(limit, from_date, to_date)
+        .expect("Failed to list alarm history");
+
+    if alarms.is_empty() {
+        println!("No alarm history found");
+        return;
+    }
+
+    let input_ids: HashSet<String> = alarms
+        .iter()
+        .filter_map(|a| a.input_id.as_ref())
+        .filter(|id| !id.is_empty())
+        .cloned()
+        .collect();
+    let input_ids: Vec<String> = Vec::from_iter(input_ids);
+
+    let output_ids: HashSet<String> = alarms
+        .iter()
+        .filter_map(|a| a.output_id.as_ref())
+        .filter(|id| !id.is_empty())
+        .cloned()
+        .collect();
+    let output_ids: Vec<String> = Vec::from_iter(output_ids);
+
+    let port_ids: HashSet<String> = alarms
+        .iter()
+        .filter_map(|a| a.physical_port_id.as_ref())
+        .filter(|id| !id.is_empty())
+        .cloned()
+        .collect();
+    let port_ids: Vec<String> = Vec::from_iter(port_ids);
+
+    let mut inputs = Vec::new();
+    for chunk in input_ids.chunks(50) {
+        inputs.extend(
+            client
+                .list_inputs_by_ids(chunk.to_vec())
+                .expect("Failed to list inputs"),
+        );
+    }
+
+    let mut outputs = Vec::new();
+    for chunk in output_ids.chunks(50) {
+        outputs.extend(
+            client
+                .list_outputs_by_ids(chunk.to_vec())
+                .expect("Failed to list outputs"),
+        );
+    }
+
+    let mut ports = Vec::new();
+    for chunk in port_ids.chunks(50) {
+        ports.extend(
+            client
+                .list_ports_by_ids(chunk.to_vec())
+                .expect("Failed to list ports"),
+        );
+    }
+
+    let input_map: HashMap<String, String> = inputs
+        .into_iter()
+        .map(|input| (input.id, input.name))
+        .collect();
+    let output_map: HashMap<String, String> = outputs
+        .into_iter()
+        .map(|output| (output.id, output.name))
+        .collect();
+    let port_map: HashMap<String, String> =
+        ports.into_iter().map(|port| (port.id, port.name)).collect();
+
+    for alarm in alarms.iter() {
+        println!("- id: {}", alarm.alarm_id);
+        println!("  severity: {}", alarm.alarm_severity);
+        println!("  cause: {}", alarm.alarm_cause);
+        println!("  type: {}", alarm.alarm_type);
+        println!("  object_name: {}", alarm.object_name);
+
+        if let Some(text) = &alarm.text {
+            if !text.is_empty() {
+                println!("  message: {}", text);
+            }
+        }
+
+        if let Some(appliance) = &alarm.appliance_name {
+            if !appliance.is_empty() {
+                println!("  appliance: {}", appliance);
+            }
+        }
+
+        if let Some(region) = &alarm.region {
+            if !region.is_empty() {
+                println!("  region: {}", region);
+            }
+        }
+
+        if let Some(purpose) = &alarm.object_purpose {
+            if !purpose.is_empty() {
+                println!("  object_purpose: {}", purpose);
+            }
+        }
+
+        if let Some(input_id) = &alarm.input_id {
+            if !input_id.is_empty() {
+                if let Some(input_name) = input_map.get(input_id) {
+                    println!("  input: {}", input_name);
+                }
+            }
+        }
+
+        if let Some(output_id) = &alarm.output_id {
+            if !output_id.is_empty() {
+                if let Some(output_name) = output_map.get(output_id) {
+                    println!("  output: {}", output_name);
+                }
+            }
+        }
+
+        if let Some(port_id) = &alarm.physical_port_id {
+            if !port_id.is_empty() {
+                if let Some(port_name) = port_map.get(port_id) {
+                    println!("  port: {}", port_name);
+                }
+            }
+        }
+
+        if let Some(raised_at) = &alarm.raised_at {
+            if !raised_at.is_empty() {
+                println!("  raised_at: {}", raised_at);
+            }
+        }
+
+        if let Some(cleared_at) = &alarm.cleared_at {
+            if !cleared_at.is_empty() {
+                println!("  cleared_at: {}", cleared_at);
+            }
+        }
+
+        println!("  repeat_count: {}", alarm.repeat_count);
+    }
 }
