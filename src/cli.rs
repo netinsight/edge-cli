@@ -15,8 +15,20 @@ use crate::tunnels;
 use clap::Command;
 
 pub(crate) fn build() -> Command {
+    let version_string: &'static str = Box::leak(
+        format!(
+            "{} {} {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("GIT_HASH"),
+            env!("BUILD_DATE")
+        )
+        .into_boxed_str(),
+    );
+
     Command::new("edgectl")
         .about("Nimbra Edge CLI")
+        .version(env!("CARGO_PKG_VERSION"))
+        .long_version(version_string)
         .subcommand_required(true)
         .subcommand(alarm::subcommand())
         .subcommand(input::subcommand())
@@ -32,4 +44,5 @@ pub(crate) fn build() -> Command {
         .subcommand(completions::subcommand())
         .subcommand(health::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
+        .subcommand(Command::new("open").about("Open interactive TUI"))
 }
