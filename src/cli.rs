@@ -5,6 +5,7 @@ use crate::group;
 use crate::group_list;
 use crate::health;
 use crate::input;
+use crate::login;
 use crate::node;
 use crate::output;
 use crate::output_list;
@@ -32,6 +33,7 @@ pub(crate) fn build() -> Command {
         .subcommand(settings::subcommand())
         .subcommand(completions::subcommand())
         .subcommand(health::subcommand())
+        .subcommand(login::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
         .subcommand(Command::new("tui").about("Open interactive TUI"))
 }

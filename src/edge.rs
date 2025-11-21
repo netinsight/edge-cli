@@ -5,20 +5,35 @@ use reqwest::blocking::Response;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 
+use crate::config::Config;
+
 pub fn new_client() -> EdgeClient {
-    let client = EdgeClient::with_url(
-        env::var("EDGE_URL")
-            .expect("missing environment variable: EDGE_URL")
-            .as_ref(),
-    );
-    let username = env::var("EDGE_USER").unwrap_or_else(|_| "admin".to_owned());
-    let password = env::var("EDGE_PASSWORD").expect("missing environment variable: EDGE_PASSWORD");
-    if let Err(e) = client.login(username, password) {
-        eprintln!("Failed to authorize against the API: {}", e);
+    let config = Config::load();
+
+    let url = env::var("EDGE_URL").ok().or(config.url).unwrap_or_else(|| {
+        eprintln!("No URL provided, either via config or env var. Try:");
+        eprintln!("edgectl login");
         process::exit(1);
+    });
+
+    if let Ok(password) = env::var("EDGE_PASSWORD") {
+        let client = EdgeClient::with_url(&url);
+        let username = env::var("EDGE_USER").unwrap_or_else(|_| "admin".to_owned());
+
+        if let Err(e) = client.login(username, password) {
+            eprintln!("Failed to authenticate: {}", e);
+            process::exit(1);
+        }
+
+        return client;
     }
 
-    client
+    if let Some(token) = env::var("EDGE_TOKEN").ok().or(config.token) {
+        EdgeClient::with_url_and_token(&url, &token)
+    } else {
+        eprintln!("No credentials found. Run 'edgectl login' to authenticate.");
+        process::exit(1);
+    }
 }
 
 pub struct EdgeClient {
@@ -28,11 +43,31 @@ pub struct EdgeClient {
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRespUser {
-    // id: String,
-    // object: String,
-    // username: String,
-    // role: String,
-    // group: String,
+    // pub id: String,
+    pub username: String,
+    pub role: String,
+    // pub group: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiTokenInit {
+    pub name: String,
+    pub role: String,
+    pub expires_at: String,
+    pub scopes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiToken {
+    // pub id: String,
+    // pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    // pub role: String,
+    // pub expires_at: String,
+    // pub scopes: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1414,6 +1449,25 @@ impl EdgeClient {
         }
     }
 
+    pub fn with_url_and_token(url: &str, token: &str) -> Self {
+        use reqwest::header;
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            header::HeaderName::from_static("edge-api-token"),
+            header::HeaderValue::from_str(token).expect("Token cannot be used as a HTTP header"),
+        );
+
+        let client = reqwest::blocking::Client::builder()
+            .default_headers(headers)
+            .build()
+            .unwrap();
+
+        Self {
+            client,
+            url: url.to_owned(),
+        }
+    }
+
     pub fn login(
         &self,
         username: String,
@@ -2445,5 +2499,18 @@ impl EdgeClient {
             .error_if_not_success()?;
 
         Ok(())
+    }
+
+    pub fn create_api_token(&self, init: ApiTokenInit) -> Result<ApiToken, EdgeError> {
+        let res = self
+            .client
+            .post(format!("{}/api/api-token/", self.url))
+            .header("content-type", "application/json")
+            .json(&init)
+            .send()
+            .map_err(EdgeError::RequestError)?
+            .error_if_not_success()?;
+
+        res.json::<ApiToken>().map_err(EdgeError::RequestError)
     }
 }

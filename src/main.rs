@@ -4,12 +4,14 @@ mod buildinfo;
 mod cli;
 mod colors;
 mod completions;
+mod config;
 mod edge;
 mod group;
 mod group_list;
 mod health;
 mod input;
 mod kubernetes;
+mod login;
 mod node;
 mod output;
 mod output_list;
@@ -39,6 +41,7 @@ fn main() {
         Some(("settings", subcmd)) => settings::run(subcmd),
         Some(("completion", subcmd)) => completions::run(subcmd),
         Some(("health", subcmd)) => health::run(subcmd),
+        Some(("login", subcmd)) => login::run(subcmd),
         Some(("tui", _)) => {
             if let Err(e) = tui::run() {
                 eprintln!("Error running TUI: {}", e);
