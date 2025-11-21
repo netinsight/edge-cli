@@ -35,7 +35,7 @@ pub struct LoginRespUser {
     // group: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InputAdminStatus {
     On,
     Off,
@@ -76,7 +76,7 @@ impl Serialize for InputAdminStatus {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ThumbnailMode {
     None,
     Core,
@@ -121,7 +121,7 @@ impl Serialize for ThumbnailMode {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     pub id: String,
@@ -157,20 +157,20 @@ pub struct NewInput {
     pub derive_from: Option<DerivableInputSource>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewSettings {
     pub mode: String, // enum ?
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InputHealth {
     pub state: String,
     pub title: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InputAppliance {
     pub name: String,
@@ -214,7 +214,7 @@ pub enum PIDRule {
     SetNull { pid: u16 },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     pub name: String,
@@ -254,7 +254,7 @@ pub struct NewOutput {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OutputAdminStatus {
     Off = 0,
     On = 1,
@@ -281,7 +281,7 @@ impl Serialize for OutputAdminStatus {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum OutputRedundancyMode {
     None = 0,
     Failover = 1,
@@ -316,7 +316,7 @@ impl<'de> Deserialize<'de> for OutputRedundancyMode {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum OutputDelayMode {
     BasedOnArrivalTime = 1,
     BasedOnOriginTime = 2,
@@ -345,7 +345,7 @@ impl<'de> Deserialize<'de> for OutputDelayMode {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputAlarm {
     pub alarm_cause: String,
@@ -353,9 +353,10 @@ pub struct OutputAlarm {
     pub text: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AlarmWithImpact {
+    pub alarm_id: String,
     pub alarm_cause: String,
     pub alarm_severity: String,
     #[serde(rename = "type")]
@@ -376,7 +377,7 @@ pub struct AlarmWithImpact {
     pub text: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Alarm {
     pub alarm_id: String,
@@ -420,14 +421,14 @@ impl<'de> Deserialize<'de> for OutputAdminStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputHealth {
     pub state: OutputHealthState,
     pub title: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum OutputHealthState {
     NotConfigured,
@@ -441,7 +442,7 @@ pub enum OutputHealthState {
     Alarm,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "mode")]
 pub enum OutputPort {
@@ -459,7 +460,7 @@ pub enum OutputPort {
     ComprimatoNdi(ComprimatoNdiOutputPort),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UdpOutputPort {
     pub address: String,
@@ -468,7 +469,7 @@ pub struct UdpOutputPort {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_address: Option<String>,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RtpOutputPort {
     pub address: String,
@@ -483,7 +484,7 @@ pub struct RtpOutputPort {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_address: Option<String>,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum OutputPortFec {
     #[serde(rename = "1D")]
@@ -491,7 +492,7 @@ pub enum OutputPortFec {
     #[serde(rename = "2D")]
     Fec2D,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RistOutputPort {
     pub address: String,
@@ -501,7 +502,7 @@ pub struct RistOutputPort {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_address: Option<String>,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "srtMode")]
 pub enum SrtOutputPort {
@@ -509,7 +510,7 @@ pub enum SrtOutputPort {
     Caller(SrtCallerOutputPort),
     Rendezvous(SrtRendezvousOutputPort),
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtListenerOutputPort {
     pub local_ip: String,
@@ -522,7 +523,7 @@ pub struct SrtListenerOutputPort {
     pub whitelist_cidr_block: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SrtKeylen {
     #[serde(rename = "16")]
     Aes128,
@@ -534,7 +535,7 @@ pub enum SrtKeylen {
     None,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum SrtRateLimiting {
     #[serde(rename = "Not enforced")]
@@ -545,7 +546,7 @@ pub enum SrtRateLimiting {
     RelativeToInput,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtCallerOutputPort {
     pub physical_port: String,
@@ -556,66 +557,66 @@ pub struct SrtCallerOutputPort {
     pub pbkeylen: SrtKeylen,
     pub rate_limiting: SrtRateLimiting,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SrtRendezvousOutputPort {
     pub local_ip: String,
     pub remote_ip: String,
     pub remote_port: u16, // Both local and remote port
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RtmpOutputPort {
     pub rtmp_destination_address: String,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "zixiMode")]
 pub enum ZixiOutputPort {
     Pull(ZixiPullOutputPort),
     Push(ZixiPushOutputPort),
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiPullOutputPort {
     pub stream_id: String,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiPushOutputPort {
     pub stream_id: String,
     pub link_set_1: Vec<ZixiLink>, // ZixiLinkSet: length 1, 2 or 3
     pub link_set_2: Option<Vec<ZixiLink>>, // ZixiLinkSet: length 1, 2 or 3
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ZixiLink {
     // pub local_ip: String,
     pub remote_ip: String,
     pub remote_port: u16,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UnixOutputPort {}
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SdiOutputPort {
     pub physical_port: String,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AsiOutputPort {}
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MatroxSdiOutputPort {}
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ComprimatoSdiOutputPort {}
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ComprimatoNdiOutputPort {}
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Appliance {
     pub name: String,
@@ -641,7 +642,7 @@ pub struct Appliance {
     // settings
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LimitedAppliance {
     // pub id: String,
@@ -652,7 +653,7 @@ pub struct LimitedAppliance {
     // secondaryRegion
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplianceVersion {
     pub control_image_version: Option<String>,
@@ -661,14 +662,14 @@ pub struct ApplianceVersion {
     pub data_software_version: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplianceHealth {
     pub title: String,
     pub state: ApplianceHealthState,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum ApplianceHealthState {
     Connected,
@@ -676,7 +677,7 @@ pub enum ApplianceHealthState {
     NeverConnected,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplianceAlarm {
     pub alarm_cause: String,
@@ -686,7 +687,7 @@ pub struct ApplianceAlarm {
     // pub kind: String, // va | edge | backend | backend-monitor | prometheus
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AppliancePhysicalPort {
     pub id: String,
@@ -702,7 +703,7 @@ pub struct AppliancePhysicalPort {
     pub networks: Vec<ApplianceNetwork>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum AppliancePortType {
     Ip,
@@ -711,7 +712,7 @@ pub enum AppliancePortType {
     Ndi,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PhysicalPortAddress {
     pub address: String,
@@ -719,7 +720,7 @@ pub struct PhysicalPortAddress {
     pub public_address: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplianceNetwork {
     // pub id: String,
@@ -751,7 +752,7 @@ pub struct ApplianceOutput {
     pub output_admin_status: OutputAdminStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InputPort {
     pub id: String,
@@ -888,7 +889,7 @@ pub struct GeneratorBitrateCBR {
     pub bitrate: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputRecipientList {
     pub id: String,
@@ -907,7 +908,7 @@ pub struct NewOutputRecipientList {
     pub add_outputs: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupRecipientList {
     pub id: String,
@@ -926,7 +927,7 @@ pub struct NewGroupRecipientList {
     pub add_groups: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Group {
     pub id: String,
@@ -941,7 +942,7 @@ pub struct Port {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Region {
     pub id: String,
@@ -958,7 +959,7 @@ pub struct NewRegion {
     pub external: ExternalRegionMode,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExternalRegionMode {
     Core = 0,
     ExternalK8s = 1,
@@ -996,7 +997,7 @@ impl Serialize for ExternalRegionMode {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct KubernetesNode {
     pub name: String,
@@ -1011,7 +1012,7 @@ pub struct KubernetesNode {
     pub region: KubernetesNodeRegion,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct KubernetesNodeRegion {
     // pub id: String,
@@ -1019,7 +1020,7 @@ pub struct KubernetesNodeRegion {
     pub external: ExternalRegionMode,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum KubernetesRole {
     Core,
@@ -1043,7 +1044,7 @@ impl fmt::Display for KubernetesRole {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Tunnel {
     pub id: u32,
@@ -1053,14 +1054,14 @@ pub struct Tunnel {
     pub inputs: Vec<TunnelInput>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TunnelInput {
     // pub id: String,
     // pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TunnelType {
     External,
     Internal,
@@ -1082,6 +1083,20 @@ impl<'de> Deserialize<'de> for TunnelType {
                 &["1", "2", "3"],
             )),
         }
+    }
+}
+
+impl Serialize for TunnelType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = match self {
+            Self::External => 1u8,
+            Self::Internal => 2u8,
+            Self::InterRegion => 3u8,
+        };
+        serializer.serialize_u8(value)
     }
 }
 
@@ -1107,7 +1122,7 @@ pub struct BuildInfo {
     // entitlements_public_key_hash: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Product {
     NimbraEdge,
     ConnectIt,
@@ -1133,7 +1148,7 @@ impl<'de> Deserialize<'de> for Product {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GlobalSettings {
     pub log_level: LogLevel,
@@ -1156,7 +1171,7 @@ pub struct GlobalSettings {
     pub backup: BackupConf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogLevel {
     Fatal,
     Error,
@@ -1203,21 +1218,21 @@ impl Serialize for LogLevel {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum BroadcastStandard {
     Dvb,
     Atsc,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum HandoverMethod {
     Udp,
     Unix,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BackupConf {
     pub external_s3: Option<serde_json::Value>,
 }
@@ -2411,5 +2426,25 @@ impl EdgeClient {
         }
 
         Ok(all_alarms)
+    }
+
+    /// Clear an active alarm by alarm ID
+    pub fn clear_alarm(&self, alarm_id: &str) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        struct ClearAlarmRequest {
+            status: String,
+        }
+
+        let encoded_id = urlencoding::encode(alarm_id);
+        self.client
+            .put(format!("{}/api/alarm/{}", self.url, encoded_id))
+            .header("content-type", "application/json")
+            .json(&ClearAlarmRequest {
+                status: "CLEAR".to_string(),
+            })
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(())
     }
 }
