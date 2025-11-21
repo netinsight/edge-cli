@@ -57,4 +57,17 @@ impl Config {
         file.write_all(contents.as_bytes())?;
         Ok(())
     }
+
+    pub fn delete() -> Result<(), std::io::Error> {
+        let path = match Self::config_path() {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        if path.exists() {
+            fs::remove_file(path)?;
+        }
+
+        Ok(())
+    }
 }

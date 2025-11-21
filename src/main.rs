@@ -17,6 +17,7 @@ mod output;
 mod output_list;
 mod region;
 mod settings;
+mod token;
 mod tui;
 mod tunnels;
 
@@ -42,6 +43,7 @@ fn main() {
         Some(("completion", subcmd)) => completions::run(subcmd),
         Some(("health", subcmd)) => health::run(subcmd),
         Some(("login", subcmd)) => login::run(subcmd),
+        Some(("token", subcmd)) => token::run(subcmd),
         Some(("tui", _)) => {
             if let Err(e) = tui::run() {
                 eprintln!("Error running TUI: {}", e);

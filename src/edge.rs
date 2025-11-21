@@ -61,13 +61,13 @@ pub struct ApiTokenInit {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiToken {
-    // pub id: String,
-    // pub name: String,
+    pub id: String,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
-    // pub role: String,
-    // pub expires_at: String,
-    // pub scopes: Vec<String>,
+    pub role: String,
+    pub expires_at: String,
+    pub scopes: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2509,5 +2509,34 @@ impl EdgeClient {
             .error_if_not_success()?;
 
         res.json::<ApiToken>().map_err(EdgeError::RequestError)
+    }
+
+    pub fn list_api_tokens(&self) -> Result<Vec<ApiToken>, EdgeError> {
+        #[derive(Debug, Deserialize)]
+        struct ApiTokenListResp {
+            items: Vec<ApiToken>,
+        }
+
+        let res = self
+            .client
+            .get(format!("{}/api/api-token/", self.url))
+            .header("content-type", "application/json")
+            .send()
+            .map_err(EdgeError::RequestError)?
+            .error_if_not_success()?;
+
+        res.json::<ApiTokenListResp>()
+            .map(|resp| resp.items)
+            .map_err(EdgeError::RequestError)
+    }
+
+    pub fn delete_api_token(&self, name: &str) -> Result<(), EdgeError> {
+        self.client
+            .delete(format!("{}/api/api-token/{}", self.url, name))
+            .header("content-type", "application/json")
+            .send()
+            .map_err(EdgeError::RequestError)?
+            .error_if_not_success()
+            .map(|_| ())
     }
 }

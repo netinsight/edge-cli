@@ -11,6 +11,7 @@ use crate::output;
 use crate::output_list;
 use crate::region;
 use crate::settings;
+use crate::token;
 use crate::tunnels;
 
 use clap::Command;
@@ -34,6 +35,7 @@ pub(crate) fn build() -> Command {
         .subcommand(completions::subcommand())
         .subcommand(health::subcommand())
         .subcommand(login::subcommand())
+        .subcommand(token::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
         .subcommand(Command::new("tui").about("Open interactive TUI"))
 }
