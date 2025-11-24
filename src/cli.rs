@@ -1,6 +1,7 @@
 use crate::alarm;
 use crate::appliance;
 use crate::completions;
+use crate::context;
 use crate::group;
 use crate::group_list;
 use crate::health;
@@ -36,6 +37,7 @@ pub(crate) fn build() -> Command {
         .subcommand(health::subcommand())
         .subcommand(login::subcommand())
         .subcommand(token::subcommand())
+        .subcommand(context::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
         .subcommand(Command::new("tui").about("Open interactive TUI"))
 }

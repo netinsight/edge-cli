@@ -5,6 +5,7 @@ mod cli;
 mod colors;
 mod completions;
 mod config;
+mod context;
 mod edge;
 mod group;
 mod group_list;
@@ -44,6 +45,7 @@ fn main() {
         Some(("health", subcmd)) => health::run(subcmd),
         Some(("login", subcmd)) => login::run(subcmd),
         Some(("token", subcmd)) => token::run(subcmd),
+        Some(("context", subcmd)) => context::run(subcmd),
         Some(("tui", _)) => {
             if let Err(e) = tui::run() {
                 eprintln!("Error running TUI: {}", e);

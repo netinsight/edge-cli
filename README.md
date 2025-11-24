@@ -16,7 +16,33 @@ fi
 
 ## Configuration
 
-`edgectl` requires environment variables for API access:
+The easiest way to get started is to use the `login` command:
+
+```bash
+edgectl login
+```
+
+This will prompt for your Edge URL and credentials, then save them as a context for future use.
+
+The configuration is stored under `$XDG_CONFIG_HOME/edgectl` or
+`$HOME/.config/edgectl` on linux, `$HOME/Library/Application Support/edgectl`
+on macOS and `{FOLDERID_RoamingAppData}` on windows.
+
+### Multiple Contexts
+
+`edgectl` supports multiple contexts (similar to kubectl) for managing different Edge installations:
+
+```bash
+# List contexts
+edgectl context list
+
+# Switch between contexts
+edgectl context use production
+```
+
+### Environment Variables
+
+You can use environment variables to override settings:
 
 ```bash
 export EDGE_URL="https://your-edge-api-endpoint"

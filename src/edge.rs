@@ -10,11 +10,14 @@ use crate::config::Config;
 pub fn new_client() -> EdgeClient {
     let config = Config::load();
 
-    let url = env::var("EDGE_URL").ok().or(config.url).unwrap_or_else(|| {
-        eprintln!("No URL provided, either via config or env var. Try:");
-        eprintln!("edgectl login");
-        process::exit(1);
-    });
+    let url = env::var("EDGE_URL")
+        .ok()
+        .or_else(|| config.get_current_context().map(|c| c.url.clone()))
+        .unwrap_or_else(|| {
+            eprintln!("No URL provided, either via config or env var. Try:");
+            eprintln!("edgectl login");
+            process::exit(1);
+        });
 
     if let Ok(password) = env::var("EDGE_PASSWORD") {
         let client = EdgeClient::with_url(&url);
@@ -28,12 +31,15 @@ pub fn new_client() -> EdgeClient {
         return client;
     }
 
-    if let Some(token) = env::var("EDGE_TOKEN").ok().or(config.token) {
-        EdgeClient::with_url_and_token(&url, &token)
-    } else {
-        eprintln!("No credentials found. Run 'edgectl login' to authenticate.");
-        process::exit(1);
-    }
+    let token = env::var("EDGE_TOKEN")
+        .ok()
+        .or_else(|| config.get_current_context().map(|c| c.token.clone()))
+        .unwrap_or_else(|| {
+            eprintln!("No credentials found. Run 'edgectl login' to authenticate.");
+            process::exit(1);
+        });
+
+    EdgeClient::with_url_and_token(&url, &token)
 }
 
 pub struct EdgeClient {

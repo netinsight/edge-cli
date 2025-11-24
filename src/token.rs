@@ -65,8 +65,8 @@ fn delete(args: &ArgMatches) {
     });
 
     let config = Config::load();
-    if let Some(token_name) = &config.token_name {
-        if token_name == name {
+    if let Some(context) = config.get_current_context() {
+        if &context.token_name == name {
             eprintln!("Warning: Deleting currently active token. You will need to login again.");
             Config::delete().ok();
         }

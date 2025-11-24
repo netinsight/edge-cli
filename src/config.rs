@@ -1,15 +1,23 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContextConfig {
+    pub url: String,
+    pub token: String,
+    pub token_name: String,
+    pub username: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
-    pub url: Option<String>,
-    pub token: Option<String>,
-    pub token_name: Option<String>,
-    pub username: Option<String>,
+    pub context: Option<String>,
+    #[serde(default)]
+    pub contexts: HashMap<String, ContextConfig>,
 }
 
 impl Config {
@@ -69,5 +77,43 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    pub fn get_current_context(&self) -> Option<&ContextConfig> {
+        let context_name = self.context.as_ref()?;
+        self.contexts.get(context_name)
+    }
+
+    pub fn set_current_context(&mut self, name: String) -> anyhow::Result<()> {
+        if !self.contexts.contains_key(&name) {
+            return Err(anyhow!("Context '{}' does not exist", name));
+        }
+        self.context = Some(name);
+        Ok(())
+    }
+
+    pub fn add_context(&mut self, name: String, context: ContextConfig) {
+        self.contexts.insert(name.clone(), context);
+        self.context = Some(name);
+    }
+
+    pub fn delete_context(&mut self, name: &str) -> anyhow::Result<()> {
+        if !self.contexts.contains_key(name) {
+            return Err(anyhow!("Context '{}' does not exist", name));
+        }
+
+        self.contexts.remove(name);
+
+        if self.context.as_deref() == Some(name) {
+            self.context = self.contexts.keys().next().cloned();
+        }
+
+        Ok(())
+    }
+
+    pub fn list_contexts(&self) -> Vec<(&String, &ContextConfig)> {
+        let mut contexts: Vec<_> = self.contexts.iter().collect();
+        contexts.sort_by_key(|(name, _)| *name);
+        contexts
     }
 }
