@@ -39,11 +39,11 @@ $(PACKAGE_DIR)/DEBIAN/%: debian/%
 
 $(PACKAGE_DIR)/usr/share/bash-completion/completions/$(NAME): target/x86_64-unknown-linux-musl/release/$(NAME)
 	@mkdir -p "$(dir $@)"
-	$< completion bash > $@
+	COMPLETE=bash $< > $@
 
 $(PACKAGE_DIR)/usr/local/share/zsh/site-functions/$(NAME): target/x86_64-unknown-linux-musl/release/$(NAME)
 	@mkdir -p "$(dir $@)"
-	$< completion zsh > $@
+	COMPLETE=zsh $< > $@
 
 $(PACKAGE_DIR)/usr/bin/$(NAME): target/x86_64-unknown-linux-musl/release/$(NAME)
 	@mkdir -p "$(dir $@)"

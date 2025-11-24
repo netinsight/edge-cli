@@ -1,8 +1,21 @@
 use crate::config::Config;
 use clap::{Arg, ArgMatches, Command};
+use clap_complete::{ArgValueCompleter, CompletionCandidate};
+use std::ffi::OsStr;
 use std::process;
 use tabled::builder::Builder;
 use tabled::settings::Style;
+
+fn context_name_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    let config = Config::load();
+    let current_str = current.to_str().unwrap_or("");
+    config
+        .contexts
+        .keys()
+        .filter(|name| name.starts_with(current_str))
+        .map(|name| CompletionCandidate::new(name.clone()))
+        .collect()
+}
 
 pub fn subcommand() -> Command {
     Command::new("context")
@@ -16,14 +29,16 @@ pub fn subcommand() -> Command {
                 .arg(
                     Arg::new("name")
                         .required(true)
-                        .help("The name of the context to use"),
+                        .help("The name of the context to use")
+                        .add(ArgValueCompleter::new(context_name_completer)),
                 ),
         )
         .subcommand(
             Command::new("delete").about("Delete a context").arg(
                 Arg::new("name")
                     .required(true)
-                    .help("The name of the context to delete"),
+                    .help("The name of the context to delete")
+                    .add(ArgValueCompleter::new(context_name_completer)),
             ),
         )
 }

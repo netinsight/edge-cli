@@ -6,11 +6,11 @@
 
 Download the latest release from [GitHub Releases](https://github.com/netinsight/edge-cli/releases/latest)
 
-Shell completions are automatically included in the Debian package. For other installations, configure completions by adding this to your `~/.bashrc`:
+Shell completions are automatically included in the Debian package. For other installations, generate and install completions:
 
 ```bash
 if command -v edgectl &> /dev/null; then
-    source <(edgectl completion bash)
+    source <(COMPLETE=bash edgectl completion)
 fi
 ```
 

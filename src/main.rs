@@ -3,7 +3,6 @@ mod appliance;
 mod buildinfo;
 mod cli;
 mod colors;
-mod completions;
 mod config;
 mod context;
 mod edge;
@@ -24,9 +23,12 @@ mod tunnels;
 
 use std::{env, process};
 
+use clap_complete::CompleteEnv;
 use edge::EdgeClient;
 
 fn main() {
+    CompleteEnv::with_factory(cli::build).complete();
+
     let matches = cli::build().get_matches();
 
     match matches.subcommand() {
@@ -41,7 +43,6 @@ fn main() {
         Some(("node", subcmd)) => node::run(subcmd),
         Some(("tunnel", subcmd)) => tunnels::run(subcmd),
         Some(("settings", subcmd)) => settings::run(subcmd),
-        Some(("completion", subcmd)) => completions::run(subcmd),
         Some(("health", subcmd)) => health::run(subcmd),
         Some(("login", subcmd)) => login::run(subcmd),
         Some(("token", subcmd)) => token::run(subcmd),

@@ -1,6 +1,5 @@
 use crate::alarm;
 use crate::appliance;
-use crate::completions;
 use crate::context;
 use crate::group;
 use crate::group_list;
@@ -33,7 +32,6 @@ pub(crate) fn build() -> Command {
         .subcommand(node::subcommand())
         .subcommand(tunnels::subcommand())
         .subcommand(settings::subcommand())
-        .subcommand(completions::subcommand())
         .subcommand(health::subcommand())
         .subcommand(login::subcommand())
         .subcommand(token::subcommand())
