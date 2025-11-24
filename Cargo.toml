@@ -10,7 +10,7 @@ anyhow = "1.0.100"
 # Disable default features to reduce transistive dependencies
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 clap = "4.5.51"
-clap_complete = "4.5.60"
+clap_complete = "4.5.61"
 humantime = "2.1"
 openssl = { version = "0.10.75", features = ["vendored"] } # vendor openssl to enable static builds
 reqwest = { version = "0.12.24", features = ["blocking", "json", "cookies"] }
