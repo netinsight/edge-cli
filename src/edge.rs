@@ -1468,11 +1468,7 @@ impl EdgeClient {
         }
     }
 
-    pub fn login(
-        &self,
-        username: String,
-        password: String,
-    ) -> Result<LoginRespUser, reqwest::Error> {
+    pub fn login(&self, username: String, password: String) -> Result<LoginRespUser, EdgeError> {
         let mut login_data = BTreeMap::new();
         login_data.insert("username", username);
         login_data.insert("password", password);
@@ -1487,7 +1483,8 @@ impl EdgeClient {
             .post(format!("{}/api/login/", self.url))
             .header("content-type", "application/json")
             .json(&login_data)
-            .send()?;
+            .send()?
+            .error_if_not_success()?;
 
         Ok(res.json::<LoginResp>()?.user)
     }
