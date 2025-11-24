@@ -135,7 +135,9 @@ fn login(url: &str, username: &str, password: &str, context_name: &str) {
         }
     };
 
-    let hostname = env::var("HOSTNAME").ok().unwrap_or("unknown".to_owned());
+    let hostname = env::var("HOSTNAME")
+        .ok()
+        .unwrap_or(gethostname::gethostname().to_string_lossy().to_string());
     let timestamp = Utc::now().format("%Y%m%d%H%M%S").to_string();
     let token_name = format!("edgectl-{}-{}", hostname, timestamp);
     let expires_at = Utc::now() + Duration::days(90);
