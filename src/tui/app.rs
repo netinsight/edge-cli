@@ -1,4 +1,5 @@
-use crate::edge::EdgeClient;
+use crate::config::Config;
+use crate::edge::{new_client, EdgeClient};
 use crate::tui::resources::{
     clear_resource, delete_resource, fetch_resources, ResourceAction, ResourceItem, ResourceType,
 };
@@ -38,6 +39,7 @@ pub struct App {
     pub delete_button_selected: usize,
     pub thumbnails: Vec<ThumbnailEntry>,
     pub inactive_channels: Vec<u32>,
+    pub config: Config,
 }
 
 impl App {
@@ -61,10 +63,24 @@ impl App {
             delete_button_selected: 0,
             thumbnails: Vec::new(),
             inactive_channels: Vec::new(),
+            config: Config::load(),
         };
 
         app.refresh_data()?;
         Ok(app)
+    }
+
+    pub fn switch_context(&mut self, context_name: &str) -> Result<()> {
+        self.config.set_current_context(context_name.to_owned())?;
+        self.config.save()?;
+
+        self.client = new_client();
+
+        self.config = Config::load();
+
+        self.refresh_data()?;
+
+        Ok(())
     }
 
     pub fn refresh_data(&mut self) -> Result<()> {
@@ -226,6 +242,8 @@ impl App {
             "al",
             "alarm-history",
             "ah",
+            "context",
+            "ctx",
             "help",
             "about",
             "version",

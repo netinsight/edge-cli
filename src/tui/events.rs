@@ -1,4 +1,5 @@
 use crate::tui::app::{App, ViewMode};
+use crate::tui::resources::{ResourceItem, ResourceType};
 use crate::tui::ui::draw_ui;
 use anyhow::Result;
 use crossterm::{
@@ -91,7 +92,16 @@ fn handle_list_mode_input(app: &mut App, key: event::KeyEvent) -> Result<()> {
             app.enter_view_mode(ViewMode::ConfirmDelete);
         }
         KeyCode::Enter => {
-            app.enter_view_mode(ViewMode::Describe);
+            if app.current_resource_type == ResourceType::Context {
+                if let Some(ResourceItem::Context(ctx)) = app.selected_item() {
+                    let context_name = ctx.name.clone();
+                    if let Err(e) = app.switch_context(&context_name) {
+                        app.error_message = Some(format!("Failed to switch context: {}", e));
+                    }
+                }
+            } else {
+                app.enter_view_mode(ViewMode::Describe);
+            }
         }
         KeyCode::Char(':') => {
             app.enter_navigate_mode();

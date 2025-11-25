@@ -1,3 +1,4 @@
+use crate::config::{Config, ContextConfig};
 use crate::edge::*;
 use anyhow::Result;
 use ratatui::style::Color;
@@ -44,6 +45,13 @@ pub struct AlarmHistoryWithEntities {
     pub output_names: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextWithMetadata {
+    pub name: String,
+    pub config: ContextConfig,
+    pub is_current: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
     Input,
@@ -58,6 +66,7 @@ pub enum ResourceType {
     Settings,
     Alarm,
     AlarmHistory,
+    Context,
 }
 
 impl ResourceType {
@@ -79,6 +88,7 @@ impl ResourceType {
             "settings" | "setting" | "s" => Some(Self::Settings),
             "alarm" | "alarms" | "al" => Some(Self::Alarm),
             "alarm-history" | "ah" => Some(Self::AlarmHistory),
+            "context" | "contexts" | "ctx" | "c" => Some(Self::Context),
             _ => None,
         }
     }
@@ -97,6 +107,7 @@ impl ResourceType {
             Self::Settings => "Settings",
             Self::Alarm => "Active Alarms",
             Self::AlarmHistory => "Alarm History",
+            Self::Context => "Contexts",
         }
     }
 
@@ -132,6 +143,7 @@ pub enum ResourceItem {
     Settings(GlobalSettings),
     Alarm(AlarmWithEntities),
     AlarmHistory(AlarmHistoryWithEntities),
+    Context(ContextWithMetadata),
 }
 
 impl ResourceItem {
@@ -154,6 +166,7 @@ impl ResourceItem {
                     a.alarm.alarm_severity, a.alarm.alarm_cause, a.alarm.alarm_id
                 )
             }
+            Self::Context(c) => c.name.clone(),
         }
     }
 
@@ -219,6 +232,12 @@ impl ResourceItem {
                 "Message".to_string(),
                 "Entity".to_string(),
                 "Cleared".to_string(),
+            ],
+            Self::Context(_) => vec![
+                "Name".to_string(),
+                "Current".to_string(),
+                "URL".to_string(),
+                "Username".to_string(),
             ],
         }
     }
@@ -335,6 +354,15 @@ impl ResourceItem {
                     cleared,
                 ]
             }
+            Self::Context(c) => {
+                let current_indicator = if c.is_current { "✓" } else { "" };
+                vec![
+                    c.name.clone(),
+                    current_indicator.to_string(),
+                    c.config.url.clone(),
+                    c.config.username.clone(),
+                ]
+            }
         }
     }
 
@@ -353,6 +381,7 @@ impl ResourceItem {
             Self::Settings(s) => serde_saphyr::to_string(s),
             Self::Alarm(a) => serde_saphyr::to_string(&a.alarm),
             Self::AlarmHistory(a) => serde_saphyr::to_string(&a.alarm),
+            Self::Context(c) => serde_saphyr::to_string(&c.config),
         };
 
         result.unwrap_or_else(|_| "Failed to serialize to YAML".to_string())
@@ -431,6 +460,13 @@ impl ResourceItem {
                 "warning" => Color::Yellow,
                 _ => Color::Blue,
             },
+            Self::Context(c) => {
+                if c.is_current {
+                    Color::Blue
+                } else {
+                    Color::White
+                }
+            }
             Self::Group(_)
             | Self::Region(_)
             | Self::Tunnel(_)
@@ -456,6 +492,14 @@ impl ResourceItem {
 
             // Resources that can be cleared (not deleted)
             Self::Alarm(_) => Some(ResourceAction::Clear),
+
+            Self::Context(c) => {
+                if c.is_current {
+                    None // Cannot delete current context
+                } else {
+                    Some(ResourceAction::Delete)
+                }
+            }
 
             // Resources that cannot be deleted or cleared
             Self::AlarmHistory(_) => None,
@@ -704,6 +748,27 @@ pub fn fetch_resources(
 
             Ok(items)
         }
+        ResourceType::Context => {
+            let config = Config::load();
+            let current_context = config.context.clone();
+
+            let mut items: Vec<ResourceItem> = config
+                .contexts
+                .into_iter()
+                .map(|(name, context_config)| {
+                    let is_current = current_context.as_ref() == Some(&name);
+                    ResourceItem::Context(ContextWithMetadata {
+                        name,
+                        config: context_config,
+                        is_current,
+                    })
+                })
+                .collect();
+
+            items.sort_by_key(|a| a.name());
+
+            Ok(items)
+        }
     }
 }
 
@@ -717,6 +782,12 @@ pub fn delete_resource(client: &EdgeClient, item: &ResourceItem) -> Result<()> {
         ResourceItem::Appliance(a) => Ok(client.delete_appliance(&a.id)?),
         ResourceItem::Group(g) => Ok(client.delete_group(&g.id)?),
         ResourceItem::Region(r) => Ok(client.delete_region(&r.id)?),
+        ResourceItem::Context(c) => {
+            let mut config = Config::load();
+            config.contexts.remove(&c.name);
+            config.save()?;
+            Ok(())
+        }
         _ => Err(anyhow::anyhow!("Resource type does not support deletion")),
     }
 }

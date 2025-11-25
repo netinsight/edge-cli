@@ -65,7 +65,10 @@ pub fn draw_ui(f: &mut Frame, app: &mut App) {
 fn draw_top_bar(f: &mut Frame, app: &mut App, area: Rect) {
     use crate::tui::resources::ResourceAction;
 
-    let edge_url = std::env::var("EDGE_URL").unwrap_or_else(|_| "Not set".to_string());
+    let context_display = std::env::var("EDGE_URL")
+        .ok()
+        .or(app.config.get_current_context().map(|c| c.url.clone()))
+        .unwrap_or("Unknown context".to_string());
 
     let shortcuts = match app.view_mode {
         ViewMode::List => {
@@ -98,7 +101,7 @@ fn draw_top_bar(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let text = vec![Line::from(vec![
-        Span::styled(&edge_url, Style::default().fg(Color::Yellow)),
+        Span::styled(&context_display, Style::default().fg(Color::Yellow)),
         Span::raw("  |  "),
         Span::styled(&shortcuts, Style::default().fg(Color::Gray)),
     ])];
@@ -790,6 +793,12 @@ fn draw_help_view(f: &mut Frame, app: &mut App, area: Rect) {
             Span::styled("  :alarm-history  ", Style::default().fg(Color::Green)),
             Span::raw("Switch to alarm history view "),
             Span::styled(":ah", Style::default().fg(Color::Green)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  :context        ", Style::default().fg(Color::Green)),
+            Span::raw("Switch to contexts view      "),
+            Span::styled(":c :ctx :contexts", Style::default().fg(Color::Green)),
         ]),
         Line::from(""),
         Line::from(vec![
