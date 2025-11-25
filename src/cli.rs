@@ -33,4 +33,5 @@ pub(crate) fn build() -> Command {
         .subcommand(completions::subcommand())
         .subcommand(health::subcommand())
         .subcommand(Command::new("build-info").about("Show build information for installation"))
+        .subcommand(Command::new("tui").about("Open interactive TUI"))
 }
