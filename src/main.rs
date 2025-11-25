@@ -15,6 +15,7 @@ mod output;
 mod output_list;
 mod region;
 mod settings;
+mod tui;
 mod tunnels;
 
 use std::{env, process};
@@ -38,6 +39,12 @@ fn main() {
         Some(("settings", subcmd)) => settings::run(subcmd),
         Some(("completion", subcmd)) => completions::run(subcmd),
         Some(("health", subcmd)) => health::run(subcmd),
+        Some(("tui", _)) => {
+            if let Err(e) = tui::run() {
+                eprintln!("Error running TUI: {}", e);
+                process::exit(1);
+            }
+        }
         Some(("build-info", _)) => {
             let client = EdgeClient::with_url(
                 env::var("EDGE_URL")
