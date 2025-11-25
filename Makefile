@@ -8,7 +8,7 @@ OUT_DIR=build
 PACKAGE_DIR=$(OUT_DIR)/$(NAME)-$(VERSION)
 
 CARGO_ZIGBUILD_VERSION=0.19.7
-CARGO_ZIGBUILD=docker run --rm -ti -v $(PWD):/io -w /io ghcr.io/rust-cross/cargo-zigbuild:${CARGO_ZIGBUILD_VERSION}
+CARGO_ZIGBUILD=docker run -e VERSION=$(VERSION) --rm -ti -v $(PWD):/io -w /io ghcr.io/rust-cross/cargo-zigbuild:${CARGO_ZIGBUILD_VERSION}
 
 .PHONY: deb
 deb: $(PACKAGE_DIR).deb
@@ -52,9 +52,9 @@ $(PACKAGE_DIR)/usr/bin/$(NAME): target/x86_64-unknown-linux-musl/release/$(NAME)
 $(PACKAGE_DIR).deb: $(PACKAGE_DIR)
 	fakeroot dpkg-deb --build "${PACKAGE_DIR}"
 
-target/x86_64-unknown-linux-musl/release/$(NAME): $(shell find src) Cargo.toml Cargo.lock 
+target/x86_64-unknown-linux-musl/release/$(NAME): $(shell find src) Cargo.toml Cargo.lock
 	$(CARGO_ZIGBUILD) cargo zigbuild --release --target x86_64-unknown-linux-musl
-target/aarch64-apple-darwin/release/$(NAME): $(shell find src) Cargo.toml Cargo.lock 
+target/aarch64-apple-darwin/release/$(NAME): $(shell find src) Cargo.toml Cargo.lock
 	$(CARGO_ZIGBUILD) cargo zigbuild --release --target aarch64-apple-darwin
 
 $(OUT_DIR)/bin/$(NAME)-%: target/%/release/$(NAME) | $(OUT_DIR)/bin/

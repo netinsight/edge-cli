@@ -17,6 +17,7 @@ use clap::Command;
 pub(crate) fn build() -> Command {
     Command::new("edgectl")
         .about("Nimbra Edge CLI")
+        .version(option_env!("VERSION").unwrap_or("unknown"))
         .subcommand_required(true)
         .subcommand(alarm::subcommand())
         .subcommand(input::subcommand())
