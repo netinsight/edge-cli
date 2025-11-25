@@ -356,6 +356,7 @@ pub struct OutputAlarm {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AlarmWithImpact {
+    pub alarm_id: String,
     pub alarm_cause: String,
     pub alarm_severity: String,
     #[serde(rename = "type")]
@@ -2411,5 +2412,24 @@ impl EdgeClient {
         }
 
         Ok(all_alarms)
+    }
+
+    pub fn clear_alarm(&self, alarm_id: &str) -> Result<(), EdgeError> {
+        #[derive(Serialize)]
+        struct ClearAlarmRequest {
+            status: String,
+        }
+
+        let encoded_id = urlencoding::encode(alarm_id);
+        self.client
+            .put(format!("{}/api/alarm/{}", self.url, encoded_id))
+            .header("content-type", "application/json")
+            .json(&ClearAlarmRequest {
+                status: "CLEAR".to_string(),
+            })
+            .send()?
+            .error_if_not_success()?;
+
+        Ok(())
     }
 }
