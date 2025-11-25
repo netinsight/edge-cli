@@ -99,6 +99,14 @@ pub(crate) fn subcommand() -> clap::Command {
                         )),
                 ),
         )
+        .subcommand(
+            Command::new("clear").about("Clear active alarms").arg(
+                Arg::new("id")
+                    .required(true)
+                    .num_args(1..)
+                    .help("The alarm IDs to clear"),
+            ),
+        )
 }
 
 pub(crate) fn run(args: &ArgMatches) {
@@ -110,6 +118,7 @@ pub(crate) fn run(args: &ArgMatches) {
             }
         }
         Some(("history", sub_args)) => run_history(sub_args),
+        Some(("clear", sub_args)) => clear(sub_args),
         _ => {
             eprintln!("No subcommand provided");
             std::process::exit(1);
@@ -377,6 +386,7 @@ fn list_wide() {
     builder.push_record([
         "Time Ago",
         "Severity",
+        "ID",
         "Cause",
         "Message",
         "Appliance",
@@ -463,6 +473,7 @@ fn list_wide() {
         builder.push_record([
             &time_ago,
             &alarm.alarm_severity,
+            &alarm.alarm_id,
             &alarm.alarm_cause,
             alarm.text.as_deref().unwrap_or("-"),
             alarm.appliance_name.as_deref().unwrap_or("-"),
@@ -918,5 +929,18 @@ fn history_list_detailed(limit: usize, from_date: Option<String>, to_date: Optio
         if alarm.repeat_count > 0 {
             println!("Repeated:         {} times", alarm.repeat_count);
         }
+    }
+}
+
+fn clear(args: &ArgMatches) {
+    let ids: Vec<&String> = args.get_many::<String>("id").unwrap().collect();
+    let client = new_client();
+
+    for id in ids {
+        if let Err(e) = client.clear_alarm(id) {
+            eprintln!("Failed to clear alarm '{}': {}", id, e);
+            std::process::exit(1);
+        }
+        println!("Cleared alarm '{}'", id);
     }
 }
