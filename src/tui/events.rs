@@ -93,10 +93,10 @@ fn handle_list_mode_input(app: &mut App, key: event::KeyEvent) -> Result<()> {
         KeyCode::Char(':') => {
             app.enter_navigate_mode();
         }
-        KeyCode::Up => {
+        KeyCode::Up | KeyCode::Char('k') => {
             app.move_selection_up();
         }
-        KeyCode::Down => {
+        KeyCode::Down | KeyCode::Char('j') => {
             app.move_selection_down();
         }
         KeyCode::Char('r') => {
@@ -139,10 +139,10 @@ fn handle_describe_mode_input(app: &mut App, key: KeyCode) -> Result<()> {
                 app.exit_to_list_view();
             }
         }
-        KeyCode::Up => {
+        KeyCode::Up | KeyCode::Char('k') => {
             app.scroll_up();
         }
-        KeyCode::Down => {
+        KeyCode::Down | KeyCode::Char('j') => {
             app.scroll_down_current_view();
         }
         _ => {}
@@ -152,7 +152,7 @@ fn handle_describe_mode_input(app: &mut App, key: KeyCode) -> Result<()> {
 
 fn handle_delete_confirm_input(app: &mut App, key: KeyCode) -> Result<()> {
     match key {
-        KeyCode::Left | KeyCode::Right | KeyCode::Tab => {
+        KeyCode::Left | KeyCode::Right | KeyCode::Tab | KeyCode::Char('h') | KeyCode::Char('l') => {
             app.delete_button_selected = 1 - app.delete_button_selected;
         }
         KeyCode::Enter => {
@@ -181,10 +181,10 @@ fn handle_help_mode_input(app: &mut App, key: KeyCode) -> Result<()> {
         KeyCode::Esc => {
             app.exit_to_list_view();
         }
-        KeyCode::Up => {
+        KeyCode::Up | KeyCode::Char('k') => {
             app.scroll_up();
         }
-        KeyCode::Down => {
+        KeyCode::Down | KeyCode::Char('j') => {
             app.scroll_down_current_view();
         }
         _ => {}
@@ -200,10 +200,10 @@ fn handle_about_mode_input(app: &mut App, key: KeyCode) -> Result<()> {
         KeyCode::Esc | KeyCode::Char('q') => {
             app.exit_to_list_view();
         }
-        KeyCode::Up => {
+        KeyCode::Up | KeyCode::Char('k') => {
             app.scroll_up();
         }
-        KeyCode::Down => {
+        KeyCode::Down | KeyCode::Char('j') => {
             app.scroll_down_current_view();
         }
         _ => {}

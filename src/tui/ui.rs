@@ -529,7 +529,7 @@ fn draw_help_view(f: &mut Frame, app: &mut App, area: Rect) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )),
-        Line::from("  ↑ / ↓         Navigate through items"),
+        Line::from("  ↑ / ↓ / j / k Navigate through items"),
         Line::from("  d             Describe selected item (detailed YAML view)"),
         Line::from("  Enter         Describe selected item (same as 'd')"),
         Line::from("  Ctrl-D        Delete/Clear selected item (if supported, with confirmation)"),
@@ -543,7 +543,7 @@ fn draw_help_view(f: &mut Frame, app: &mut App, area: Rect) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         )),
-        Line::from("  ↑ / ↓         Scroll content"),
+        Line::from("  ↑ / ↓ / j / k Scroll content"),
         Line::from("  :             Enter navigate mode"),
         Line::from("  Esc           Return to list view"),
         Line::from(""),
