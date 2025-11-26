@@ -222,6 +222,18 @@ fn draw_list_view(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn draw_describe_view(f: &mut Frame, app: &mut App, area: Rect) {
     if let Some(item) = app.selected_item() {
+        let has_thumbnails = !app.thumbnails.is_empty() || !app.inactive_channels.is_empty();
+
+        let (yaml_area, thumbnail_area) = if has_thumbnails {
+            let chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .split(area);
+            (chunks[0], Some(chunks[1]))
+        } else {
+            (area, None)
+        };
+
         let yaml_content = item.to_yaml();
         let lines: Vec<&str> = yaml_content.lines().collect();
 
@@ -301,7 +313,122 @@ fn draw_describe_view(f: &mut Frame, app: &mut App, area: Rect) {
                 )),
         );
 
-        f.render_widget(paragraph, area);
+        f.render_widget(paragraph, yaml_area);
+
+        if let Some(thumb_area) = thumbnail_area {
+            draw_thumbnail_panel(f, app, thumb_area);
+        }
+    }
+}
+
+fn draw_thumbnail_panel(f: &mut Frame, app: &mut App, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Thumbnails ");
+
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    if app.thumbnails.is_empty() && app.inactive_channels.is_empty() {
+        return;
+    }
+
+    // Calculate layout: each thumbnail gets space + 1 line for label
+    // Reserve space at the bottom for inactive channels if any
+    let inactive_height = if app.inactive_channels.is_empty() {
+        0
+    } else {
+        2 // 1 line for "Inactive:" label + 1 line for channel list
+    };
+
+    let thumbnail_count = app.thumbnails.len();
+    let available_height = inner_area.height.saturating_sub(inactive_height as u16);
+
+    if thumbnail_count > 0 {
+        // Each thumbnail gets equal share of space, with 1 line reserved for the label below
+        let height_per_thumbnail = available_height / thumbnail_count as u16;
+
+        for (i, entry) in app.thumbnails.iter_mut().enumerate() {
+            // Calculate layout
+            let thumb_height = height_per_thumbnail.saturating_sub(1); // Reserve 1 line for label
+            if thumb_height == 0 {
+                continue;
+            }
+            let y_offset = i as u16 * height_per_thumbnail;
+            if y_offset >= available_height {
+                break;
+            }
+
+            // Draw channel label below the thumbnail
+            if let Some(channel_id) = entry.channel_id {
+                let label_rect = Rect {
+                    x: inner_area.x,
+                    y: inner_area.y + y_offset,
+                    width: inner_area.width,
+                    height: 1,
+                };
+
+                let label = format!("Channel {}", channel_id);
+
+                let label_widget = Paragraph::new(Line::from(Span::styled(
+                    label,
+                    Style::default().fg(Color::Gray),
+                )));
+
+                f.render_widget(label_widget, label_rect);
+            }
+
+            // Draw thumbnail
+            let thumb_rect = Rect {
+                x: inner_area.x,
+                y: inner_area.y + y_offset + 1,
+                width: inner_area.width,
+                height: thumb_height,
+            };
+            let image_widget =
+                ratatui_image::StatefulImage::default().resize(ratatui_image::Resize::Scale(None));
+            f.render_stateful_widget(image_widget, thumb_rect, &mut entry.protocol);
+        }
+    }
+
+    // Draw inactive channels section at the bottom
+    if !app.inactive_channels.is_empty() {
+        let inactive_y = inner_area.y + available_height;
+
+        // "Inactive:" label
+        let label_rect = Rect {
+            x: inner_area.x,
+            y: inactive_y,
+            width: inner_area.width,
+            height: 1,
+        };
+        let label_widget = Paragraph::new(Line::from(Span::styled(
+            "Inactive channels:",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        )));
+        f.render_widget(label_widget, label_rect);
+
+        // Channel IDs list
+        let channels_rect = Rect {
+            x: inner_area.x,
+            y: inactive_y + 1,
+            width: inner_area.width,
+            height: 1,
+        };
+        let channel_list: Vec<String> = app
+            .inactive_channels
+            .iter()
+            .map(|id| id.to_string())
+            .collect();
+        let channels_text = channel_list.join(", ");
+        let channels_widget = Paragraph::new(Line::from(Span::styled(
+            channels_text,
+            Style::default().fg(Color::DarkGray),
+        )));
+        f.render_widget(channels_widget, channels_rect);
     }
 }
 
@@ -466,7 +593,7 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: Rect) {
         // Draw progress bar only if auto-refresh is enabled
         if app.auto_refresh_enabled {
             let elapsed_secs = app.last_refresh.elapsed().as_secs_f64();
-            let refresh_interval = 10.0;
+            let refresh_interval = 5.0;
             let progress_ratio = (elapsed_secs / refresh_interval).min(1.0);
             let time_remaining = (refresh_interval - elapsed_secs).max(0.0).ceil() as u64;
 
