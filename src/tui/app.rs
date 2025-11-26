@@ -14,6 +14,11 @@ pub enum ViewMode {
     About,
 }
 
+pub struct ThumbnailEntry {
+    pub protocol: ratatui_image::protocol::StatefulProtocol,
+    pub channel_id: Option<u32>,
+}
+
 pub struct App {
     pub client: EdgeClient,
     pub current_resource_type: ResourceType,
@@ -31,6 +36,8 @@ pub struct App {
     pub auto_refresh_enabled: bool,
     pub content_area_height: u16,
     pub delete_button_selected: usize,
+    pub thumbnails: Vec<ThumbnailEntry>,
+    pub inactive_channels: Vec<u32>,
 }
 
 impl App {
@@ -52,6 +59,8 @@ impl App {
             auto_refresh_enabled: true,
             content_area_height: 24,
             delete_button_selected: 0,
+            thumbnails: Vec::new(),
+            inactive_channels: Vec::new(),
         };
 
         app.refresh_data()?;
@@ -150,11 +159,17 @@ impl App {
         }
         self.view_mode = mode;
         self.scroll_offset = 0;
+
+        if mode == ViewMode::Describe {
+            self.fetch_thumbnail_for_current_item();
+        }
     }
 
     pub fn exit_to_list_view(&mut self) {
         self.view_mode = ViewMode::List;
         self.scroll_offset = 0;
+        self.thumbnails.clear();
+        self.inactive_channels.clear();
     }
 
     pub fn enter_navigate_mode(&mut self) {
@@ -350,10 +365,68 @@ impl App {
     }
 
     pub fn should_refresh(&self) -> bool {
-        self.last_refresh.elapsed().as_secs() >= 10
+        self.last_refresh.elapsed().as_secs() >= 5
     }
 
     pub fn toggle_auto_refresh(&mut self) {
         self.auto_refresh_enabled = !self.auto_refresh_enabled;
+    }
+
+    pub fn fetch_thumbnail_for_current_item(&mut self) {
+        use crate::edge::{Input, ThumbnailMode};
+        use ratatui_image::picker::Picker;
+
+        self.thumbnails.clear();
+        self.inactive_channels.clear();
+
+        let input: Option<Input> = match self.selected_item() {
+            Some(ResourceItem::Input(i)) => Some(i.clone()),
+            Some(ResourceItem::Output(o)) => o
+                .input
+                .as_ref()
+                .and_then(|id| self.client.get_input(id).ok()),
+            _ => None,
+        };
+
+        let Some(input) = input else { return };
+
+        match input.thumbnail_mode {
+            ThumbnailMode::Core => {
+                let path = format!("thumb/{}", input.id);
+                if let Some(bytes) = self.client.fetch_thumbnail(&path) {
+                    if let Ok(img) = image::load_from_memory(&bytes) {
+                        let picker = Picker::from_query_stdio()
+                            .unwrap_or_else(|_| Picker::from_fontsize((8, 16)));
+                        let protocol = picker.new_resize_protocol(img);
+                        self.thumbnails.push(ThumbnailEntry {
+                            protocol,
+                            channel_id: None,
+                        });
+                    }
+                }
+            }
+            ThumbnailMode::Edge => {
+                let channels = input.get_all_channels();
+                for channel in channels {
+                    if channel.active {
+                        let path = format!("thumbnailer/{}", channel.channel_id);
+                        if let Some(bytes) = self.client.fetch_thumbnail(&path) {
+                            if let Ok(img) = image::load_from_memory(&bytes) {
+                                let picker = Picker::from_query_stdio()
+                                    .unwrap_or_else(|_| Picker::from_fontsize((8, 16)));
+                                let protocol = picker.new_resize_protocol(img);
+                                self.thumbnails.push(ThumbnailEntry {
+                                    protocol,
+                                    channel_id: Some(channel.channel_id),
+                                });
+                            }
+                        }
+                    } else {
+                        self.inactive_channels.push(channel.channel_id);
+                    }
+                }
+            }
+            ThumbnailMode::None => {}
+        }
     }
 }

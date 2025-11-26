@@ -783,3 +783,28 @@ fn truncate_message(msg: &str, max_len: usize) -> String {
         msg.to_string()
     }
 }
+
+impl Input {
+    pub fn get_all_channels(&self) -> Vec<ChannelInfo> {
+        let Some(metrics) = self.metrics.as_ref() else {
+            return Vec::new();
+        };
+        let Some(rist_metrics) = metrics.rist_metrics.as_ref() else {
+            return Vec::new();
+        };
+
+        rist_metrics
+            .iter()
+            .filter_map(|metric| {
+                if metric.metric_type == "channel" {
+                    metric.channel_id.map(|id| ChannelInfo {
+                        channel_id: id,
+                        active: metric.state.as_deref() == Some("activated"),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}

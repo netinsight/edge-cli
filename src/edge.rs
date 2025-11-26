@@ -164,6 +164,27 @@ impl Serialize for ThumbnailMode {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct InputMetrics {
+    pub rist_metrics: Option<Vec<RistMetric>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RistMetric {
+    #[serde(rename = "type")]
+    pub metric_type: String,
+    pub state: Option<String>,
+    pub channel_id: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChannelInfo {
+    pub channel_id: u32,
+    pub active: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Input {
     pub id: String,
     pub name: String,
@@ -180,6 +201,7 @@ pub struct Input {
     pub appliances: Vec<InputAppliance>,
     pub health: InputHealth,
     pub ports: Option<Vec<InputPort>>,
+    pub metrics: Option<InputMetrics>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2544,5 +2566,19 @@ impl EdgeClient {
             .map_err(EdgeError::RequestError)?
             .error_if_not_success()
             .map(|_| ())
+    }
+
+    /// Fetch thumbnail image for an input
+    /// Returns JPEG bytes on success, or None if thumbnail doesn't exist
+    pub fn fetch_thumbnail(&self, path: &str) -> Option<Vec<u8>> {
+        let timestamp = chrono::Utc::now().timestamp();
+        let url = format!("{}/{}.jpg?{}", self.url, path, timestamp);
+
+        let response = self.client.get(&url).send().ok()?;
+        if response.status().is_success() {
+            response.bytes().ok().map(|b| b.to_vec())
+        } else {
+            None
+        }
     }
 }

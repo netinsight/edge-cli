@@ -69,7 +69,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
 
         // Check if we should refresh (only if auto-refresh is enabled)
         if app.auto_refresh_enabled && app.should_refresh() {
-            let _ = app.refresh_data(); // Ignore errors during auto-refresh
+            let _ = app.refresh_data();
+            if app.view_mode == ViewMode::Describe {
+                app.fetch_thumbnail_for_current_item();
+            }
         }
     }
 
