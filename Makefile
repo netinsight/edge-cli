@@ -10,8 +10,12 @@ SECRET_KEY_PATH ?= ~/Documents/certificates
 
 ifeq ($(shell uname -sm),Darwin arm64)
   CARGO_NATIVE_TARGET=aarch64-apple-darwin
+  GH_ARCH=macOS_arm64
+  GH_EXT=zip
 else
   CARGO_NATIVE_TARGET=x86_64-unknown-linux-musl
+  GH_ARCH=linux_amd64
+  GH_EXT=tar.gz
 endif
 
 CARGO_ZIGBUILD_VERSION=0.19.7
@@ -85,14 +89,21 @@ $(OUT_DIR)/bin/$(NAME)-%: target/%/release/$(NAME) | $(OUT_DIR)/bin/
 $(OUT_DIR)/ $(OUT_DIR)/bin/ $(OUT_DIR)/tmp/:
 	mkdir -p $@
 
-GH_VERSION=2.69.0
-$(OUT_DIR)/tmp/gh: $(OUT_DIR)/tmp/gh_$(GH_VERSION)_linux_amd64/bin/gh
-	cp -l -f $< $@
-$(OUT_DIR)/tmp/gh_$(GH_VERSION)_linux_amd64.tar.gz: | $(OUT_DIR)/tmp/
-	wget https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_linux_amd64.tar.gz -O $@
-$(OUT_DIR)/tmp/gh_$(GH_VERSION)_linux_amd64/bin/gh: $(OUT_DIR)/tmp/gh_$(GH_VERSION)_linux_amd64.tar.gz
-	tar -xf $(OUT_DIR)/tmp/gh_$(GH_VERSION)_linux_amd64.tar.gz  --directory $(OUT_DIR)/tmp/ gh_$(GH_VERSION)_linux_amd64/bin/gh
+GH_VERSION=2.83.1
+GH_ARCHIVE=$(OUT_DIR)/tmp/gh_$(GH_VERSION)_$(GH_ARCH).$(GH_EXT)
+$(OUT_DIR)/tmp/gh: $(OUT_DIR)/tmp/gh_$(GH_VERSION)_$(GH_ARCH)/bin/gh
+	cp -f $< $@
+$(GH_ARCHIVE): | $(OUT_DIR)/tmp/
+	curl -L https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_$(GH_ARCH).$(GH_EXT) -o $@
+ifeq ($(GH_EXT),zip)
+$(OUT_DIR)/tmp/gh_$(GH_VERSION)_$(GH_ARCH)/bin/gh: $(GH_ARCHIVE)
+	unzip -o $(GH_ARCHIVE) gh_$(GH_VERSION)_$(GH_ARCH)/bin/gh -d $(OUT_DIR)/tmp/
 	touch $@
+else
+$(OUT_DIR)/tmp/gh_$(GH_VERSION)_$(GH_ARCH)/bin/gh: $(GH_ARCHIVE)
+	tar -xf $(GH_ARCHIVE) --directory $(OUT_DIR)/tmp/ gh_$(GH_VERSION)_$(GH_ARCH)/bin/gh
+	touch $@
+endif
 
 release: $(OUT_DIR)/tmp/gh \
 	$(OUT_DIR)/bin/$(NAME)-x86_64-unknown-linux-musl \
