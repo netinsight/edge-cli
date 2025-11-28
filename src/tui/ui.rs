@@ -871,7 +871,7 @@ fn draw_about_view(f: &mut Frame, app: &mut App, area: Rect) {
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
-                "https://github.com/netinsight/edge-cli",
+                "https://github.com/netinsight/edgectl",
                 Style::default().fg(Color::Blue),
             ),
         ]),
