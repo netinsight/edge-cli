@@ -4,7 +4,7 @@
 
 ## Installation
 
-Download the latest release from [GitHub Releases](https://github.com/netinsight/edge-cli/releases/latest)
+Download the latest release from [GitHub Releases](https://github.com/netinsight/edgectl/releases/latest)
 
 Shell completions are automatically included in the Debian package. For other installations, generate and install completions:
 
