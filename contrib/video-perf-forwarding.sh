@@ -48,8 +48,8 @@ num_outputs="${1?missing argument: Number of outputs}"
 
 set -euo pipefail
 
-generator_appliance=$(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ /input/ { print $1 }' | sort | head)
-output_appliance=$(edgectl appliance list | awk '$3 == "edgeConnect" && $1 ~ /output/ { print $1 }' | sort | head)
+generator_appliance=$(edgectl appliance list | awk '$1 ~ /input/ { print $1 }' | sort | head)
+output_appliance=$(edgectl appliance list | awk '$1 ~ /output/ { print $1 }' | sort | head)
 
 generator_interface=$(edgectl appliance show "$generator_appliance" | awk '/Name:/ { name=$3; found=0 } /Networks:.*streaming/ { found=1 } /Address:/ && found { print(name) }')
 if [[ -z "$generator_interface" ]]; then echo "ERROR: generator_interface is empty. Make sure the network of at least one interface is \"streaming\" on input appliance." >&2; exit 1; fi
