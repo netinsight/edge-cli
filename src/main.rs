@@ -27,7 +27,9 @@ use clap_complete::CompleteEnv;
 use edge::EdgeClient;
 
 fn main() {
-    CompleteEnv::with_factory(cli::build).complete();
+    CompleteEnv::with_factory(cli::build)
+        .completer("edgectl")
+        .complete();
 
     let matches = cli::build().get_matches();
 
